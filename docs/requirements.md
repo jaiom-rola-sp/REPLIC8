@@ -16,7 +16,7 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 
 | ID | Requirement | Priority | Status | Notes |
 |----|-------------|----------|--------|-------|
-| FR-1 | Ingest a GitHub repo: clone, detect language, extract functions with tree-sitter | Must | Not started | |
+| FR-1 | Ingest a GitHub repo in any language: clone, detect language, extract functions (tree-sitter when a grammar exists) | Must | Not started | See FR-11 for fallbacks |
 | FR-2 | Generate a REST API (OpenAPI) and an MCP server per legacy system; each operation traces to `file:line` | Must | Not started | |
 | FR-3 | Contract tests run against the real legacy code; failing operations are not published | Must | Not started | |
 | FR-4 | Run legacy code in a Docker sandbox | Must | Not started | |
@@ -25,7 +25,8 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 | FR-7 | Self-healing: detect failure, diagnose (Gemini Vision + Nemotron), regenerate, replay tests, save only on pass | Should | Not started | |
 | FR-8 | Version history and rollback of wrappers | Should | Not started | |
 | FR-9 | Extension module: add functionality separate from legacy code | Could | Not started | Stretch |
-| FR-10 | Build demo legacy apps: 2 required, 3rd is stretch | Must | Not started | Languages TBD |
+| FR-10 | Build demo legacy apps: 2 required, 3rd is stretch | Must | Not started | Languages TBD; cover at least 2 tiers |
+| FR-11 | Language-agnostic ingestion with 3 tiers: parsed, inferred (LLM), black-box (CLI/HTTP wrapper). Label each operation with its tier; every tier must pass contract tests | Must | Not started | "Any language" is the goal, proven on demo languages |
 
 ## Non-functional requirements
 
@@ -44,5 +45,6 @@ See [prd section 9](prd.md#9-open-questions).
 
 ## Decisions
 
+- **2026-11-07:** Replic8 should handle any legacy language. Defined as 3 ingestion tiers (parsed, inferred, black-box) with a confidence label per operation, not a promise that every repo works. Reason: nobody can guarantee "any," but tiers plus mandatory contract tests keep it honest.
 - **2026-11-07:** Core input is source code from GitHub; demo uses several small legacy apps we build ourselves. Reason: reliable demo we control, and the reference repo (`api-anything`) covers websites, not source code.
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.

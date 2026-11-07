@@ -19,9 +19,14 @@ Turn legacy source code from GitHub into an agent-ready API and MCP server, keep
 
 ## 4. Features
 
-### F1. Legacy code to API/MCP (FR-1 to FR-5)
+### F1. Legacy code to API/MCP (FR-1 to FR-5, FR-11)
 1. User gives a GitHub repo URL.
-2. Replic8 clones it, detects the language, and extracts the real functions and their signatures with a parser (tree-sitter). **The LLM only sees extracted symbols, not guesses.**
+2. Replic8 clones it and detects the language. **It must work on any language**, using three tiers (FR-11):
+   - **Parsed:** a tree-sitter grammar exists, so we extract the real functions and signatures. The LLM only sees extracted symbols, not guesses.
+   - **Inferred:** no grammar, so Nemotron reads the files and proposes entry points. Less trustworthy, so it relies entirely on the contract tests below.
+   - **Black-box:** code can't be understood, so we wrap it as a command (args, stdin/stdout) or HTTP service and test it from the outside.
+
+   Each operation is labeled `parsed`, `inferred` or `black-box` so users know how much to trust it.
 3. Nemotron picks which functions to expose and writes the wrapper: a REST API (OpenAPI) and an MCP server.
 4. Every exposed operation must point to a source location (`file:line`) and pass a contract test against the real legacy code. Operations that fail are not published.
 5. The legacy code runs in a sandbox (Docker), never directly on the host.
@@ -91,7 +96,7 @@ Suggested order: demo apps and ingest, then generate and verify, then gateway, t
 
 ## 9. Open questions
 
-- [ ] Which languages for the demo apps? (Pick ones with a tree-sitter grammar and a simple Docker image. Avoid hard-to-run ones like COBOL unless we have time.)
+- [ ] Which languages for the demo apps? To prove "any language," pick one that is `parsed` (has a tree-sitter grammar) and one that goes through the `inferred` or `black-box` tier. Both need a simple Docker image.
 - [ ] Do the demo apps have a UI (for the screenshot/vision step), or is healing driven by errors and tests only?
 - [ ] Which Nemotron and Gemini models, and what API limits do we have?
 - [ ] Which cloud provider and who owns the keys?
@@ -101,6 +106,7 @@ Suggested order: demo apps and ingest, then generate and verify, then gateway, t
 
 ## 10. Risks
 
+- "Any language" is a goal, not a guarantee. We prove it on the demo languages and label confidence per operation. Old languages also need their toolchain in the sandbox (picking the right Docker base image per repo is hard).
 - Running legacy code from a repo is risky, so sandbox everything.
 - Generated wrappers can be wrong in subtle ways, which is why tests gate publishing.
 - 24 hours is tight. Cut F4 first, then the third demo app.
