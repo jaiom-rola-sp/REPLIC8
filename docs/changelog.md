@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Demo scenario, drop vision, read-only default (PRD v0.2)
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Added the Company A / Subsidiary B / Subsidiary C demo scenario. Dropped Gemini Vision (Nemotron only; healing driven by tests and code diffs). Chose "rename a function/field" as the live break. Added FR-13 (read-only by default) and updated FR-7, FR-10, FR-12. Renumbered PRD sections; open questions are now section 10.
+- **Requirement(s):** FR-7, FR-10, FR-12, FR-13
+- **Commit:** see git log for "Update PRD to v0.2"
+
 ## 2026-11-07: Photon send-only notifications
 
 - **Who:** Claude (for Jaiom)
