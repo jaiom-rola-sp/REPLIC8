@@ -1,4 +1,5 @@
-Initial Commit
+Initial Commit:
+
 ## Using this repo with Obsidian
 
 1. Install [Obsidian](https://obsidian.md).
