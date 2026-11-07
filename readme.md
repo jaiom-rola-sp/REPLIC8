@@ -10,3 +10,8 @@ Initial Commit:
 Obsidian's settings live in `.obsidian/`, which is git-ignored, so each person keeps their own layout and plugins.
 
 If you use `[[wikilinks]]`, they won't render on GitHub. Prefer standard `[text](path.md)` links, or turn off **Settings → Files and links → Use [[Wikilinks]]**.
+
+## Project docs
+
+- [Requirements](docs/requirements.md): what we're building and its status.
+- [Changelog](docs/changelog.md): what changed and why.
