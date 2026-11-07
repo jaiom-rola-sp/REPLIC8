@@ -7,7 +7,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Krish Thapa (with Claude)
 - **What changed:** Added `graphify-out/` to `.gitignore` so generated knowledge-graph files stay out of the repo.
 - **Requirement(s):** None
-- **Commit:** Not committed yet
+- **Commit:** 58fb7ce
 
 ## YYYY-MM-DD: <!-- short title -->
 
