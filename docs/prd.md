@@ -133,8 +133,9 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 
 ## 10. Open questions
 
-- [ ] Which languages for B and C? To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
-- [ ] Which Nemotron model, and what API limits and key do we have?
+- [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Open: do we still want one system to go through the `inferred` or `black-box` tier to prove "any language"?
+  Original question: To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
+- [x] Which Nemotron model, and what API limits and key do we have? **Decided 2026-11-07:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (early access). Key is in Aryan's cloud environment secrets, not the repo. Rate limits still unknown.
 - [ ] Which cloud provider and who owns the keys?
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
 - [ ] Where does the "combine B and C" step live: in Company A's agent, or as a cross-system operation inside Replic8?
@@ -142,7 +143,7 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine? How are write operations authorized later?
 - [ ] Photon: do we have an account and API key? Does it give us a send-only credential? Which number sends, and which receives?
 - [ ] Photon: which events are worth a text, and how often before it becomes spam?
-- [ ] Proposed (backend): Nemotron only writes a JSON proposal (which function, schemas, fixed command) and never code that runs on the host. Any generated wrapper code runs only inside the sandbox. Agree?
+- [x] Proposed (backend): Nemotron never writes code. **Decided 2026-11-07** after live testing (see requirements decisions). replic8 builds each call itself, so we need a small call shim per language (COBOL, Fortran).
 - [ ] Do the demo legacy systems need a writable database or folder? The sandbox is read-only and offline by default.
 - [ ] Registry history: plain versioned files (built) or also a git commit per version (PRD section 7)?
 - [ ] Who holds the gateway tokens, and do we need per-caller scopes after the demo?

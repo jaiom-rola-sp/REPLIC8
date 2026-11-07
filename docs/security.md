@@ -27,6 +27,11 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 | T12 | Large requests exhaust memory | 64 KB body cap, enforced with or without Content-Length | `gateway.BodyLimit` |
 | T13 | Texts leak code or secrets, or texts trigger actions (FR-12) | Fixed templates filled only with validated identifiers and numbers; E.164 allowlist from env; no inbound handler exists; sends run in the background and never raise; repeats are grouped | `notify.py` |
 | T14 | Path traversal in registry or source locations | System names are regex-checked; source paths must be relative with no `..` | `registry.py`, `models.SourceLocation` |
+| T15 | Secrets in legacy code get sent to NVIDIA's API | Keys, passwords, tokens, private keys and credentials in URLs are replaced with `<redacted>` before sending (line numbers kept). Vendored folders are skipped and context is size-capped | `prompts.redact`, `prompts.build_context` |
+| T16 | Prompt injection through code comments or the diff | Code and diffs are wrapped in markers with a random nonce, and the model is told their contents are data. This only lowers the risk; T5 and T6 are the real gate | `prompts.py` |
+| T17 | A self-heal silently changes what agents get | A repair must keep each operation's name and input/output schemas, can't add operations, and can't relabel a write as read. Anything else is rejected as a breaking change for a human | `generate.heal` |
+| T18 | Model writes code or a shell command that then runs | The model's answer has no command field at all (extra fields are rejected). replic8 builds each command from the language, file and function, and refuses any that starts a shell. Seen in live testing: the model tried inline `python3 -c` code | `guard.py`, `guard.SHELLS` |
+| T19 | API key leaks or goes to the wrong host | Key only from `NVIDIA_API_KEY` (in the cloud session, injected by the network proxy so code never sees it); https-only base URL; redirects not followed; key kept out of logs, errors and `repr` | `nemotron.py` |
 
 ## Known gaps (not done yet)
 
@@ -34,4 +39,5 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 - **Docker socket:** the backend needs Docker access, which is root-equivalent on the host. Run the backend on the demo VM only, not on a shared machine. A rootless Docker or gVisor runtime would be stronger.
 - **Legacy code that needs its own database or a writable directory** won't run under `--read-only` without an extra tmpfs. Decide per demo system.
 - **Tokens** are static, shared secrets with no per-caller scopes or expiry. Fine for a demo, not for production.
-- **Not built yet:** tree-sitter extraction, the Nemotron client, contract-test generation, the MCP server, self-healing, and the Photon transport (its API is unverified).
+- **Redaction is pattern-based.** It catches common secret shapes, not all of them. Don't ingest repos with real customer data or live credentials.
+- **Not built yet:** tree-sitter extraction, contract-test generation, the sandbox shims that turn stdin JSON into a function call, the MCP server, self-healing, and the Photon transport (its API is unverified).

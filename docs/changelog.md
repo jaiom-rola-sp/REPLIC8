@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Nemotron client, prompts, and self-heal generation
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `backend/replic8/nemotron.py` (client), `prompts.py` (secret redaction, injection fencing, source diffs) and `generate.py` (propose operations; repairs that keep each operation's contract). Tested live against `nvidia/nemotron-3.5-super-vl-120b-a12b`: switched to `response_format` with thinking off, and the model no longer supplies commands (replic8 builds them). Recorded decisions: B in COBOL, C in Fortran, the model choice, no model-written code. Added threats T15 to T19 to `docs/security.md` and 22 tests (95 total).
+- **Requirement(s):** FR-2, FR-7, FR-10, FR-11, FR-13
+- **Commit:** not committed yet
+
 ## 2026-11-07: Backend foundation and security model
 
 - **Who:** Claude (for Aryan)
