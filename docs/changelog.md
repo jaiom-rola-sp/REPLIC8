@@ -36,3 +36,10 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Added `docs/prd.md` (draft v0.1) and filled `docs/requirements.md` with FR-1 to FR-10, decisions, and non-functional requirements.
 - **Requirement(s):** FR-1 to FR-10 (all created)
 - **Commit:** cbc0ac3
+
+## 2026-11-07: Ignore graphify output
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Added `graphify-out/` to `.gitignore` so generated knowledge-graph files stay out of the repo.
+- **Requirement(s):** None
+- **Commit:** 58fb7ce
