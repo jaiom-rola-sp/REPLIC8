@@ -46,7 +46,7 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 
 ## Open questions
 
-See [prd section 10](prd.md#10-open-questions).
+See [prd section 11](prd.md#11-open-questions).
 
 ## Decisions
 

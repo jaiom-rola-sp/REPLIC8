@@ -99,7 +99,18 @@ flowchart LR
   HEAL -. update .-> PH[Photon text, send-only]
 ```
 
-## 7. Technology choices
+## 7. Security interfaces
+
+Everyone must use these 4 functions.
+
+| Function | Status | When to use | Rules | Owner |
+|----------|--------|-------------|-------|-------|
+| `validate_call(api_key, tool_name, args)` | Planned | At the start of every gateway route (REST and MCP). | Raises 401 for a bad key, 403 if the tool isn't allowed or is a write operation, 404 if the tool isn't published, 422 for bad input. Logs every call to the audit log. | Security |
+| `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | One locked Docker container per system (B = GnuCOBOL), a fresh container for heal retests, no network, read-only, non-root, resource limits, timeout. Raises `SandboxError` (base error). Planned subclasses: `SandboxTimeout`, `SandboxCrash`, `OutputSchemaError`, `FunctionMissing`. | Security |
+| `trigger_heal(tool_name, error_info)` | Planned | Called by the error handler only on `OutputSchemaError` or `FunctionMissing`. | A repair must not change a tool's read/write access, and is saved only if contract tests pass. | Backend |
+| `notify(event, *, system, version, count)` (`Notifier` in `backend/replic8/notify.py`) | Built | Call this instead of Photon directly. | Send-only, numbers from the env allowlist, fixed message templates, no code or data in texts, never blocks the pipeline. | Security |
+
+## 8. Technology choices
 
 | Area | Choice | Why | Check |
 |------|--------|-----|-------|
@@ -113,13 +124,13 @@ flowchart LR
 | Hosting | One cloud VM running docker compose | Simplest for a demo | **TBD** provider |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning |
 
-## 8. Anti-hallucination rules (for humans and AIs)
+## 9. Anti-hallucination rules (for humans and AIs)
 
 - No operation without a source location and a passing test.
 - Graph edges come from schemas, not from model opinion.
 - If the docs don't say it, ask or log it under open questions. Don't invent.
 
-## 9. 24-hour scope
+## 10. 24-hour scope
 
 | Priority | What | Reqs |
 |----------|------|------|
@@ -131,7 +142,7 @@ flowchart LR
 
 Suggested order: build the demo systems and ingest, then generate and verify, then gateway, then graph, then self-healing and Photon, then polish the demo script. Keep each legacy system to 2 or 3 read operations.
 
-## 10. Open questions
+## 11. Open questions
 
 - [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Open: do we still want one system to go through the `inferred` or `black-box` tier to prove "any language"?
   Original question: To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
@@ -145,10 +156,10 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [ ] Photon: which events are worth a text, and how often before it becomes spam?
 - [x] Proposed (backend): Nemotron never writes code. **Decided 2026-11-07** after live testing (see requirements decisions). replic8 builds each call itself, so we need a small call shim per language (COBOL, Fortran).
 - [ ] Do the demo legacy systems need a writable database or folder? The sandbox is read-only and offline by default.
-- [ ] Registry history: plain versioned files (built) or also a git commit per version (PRD section 7)?
+- [ ] Registry history: plain versioned files (built) or also a git commit per version (PRD section 8)?
 - [ ] Who holds the gateway tokens, and do we need per-caller scopes after the demo?
 
-## 11. Risks
+## 12. Risks
 
 - "Any language" is a goal, not a guarantee. We prove it on the demo languages and label confidence per operation. Old languages also need their toolchain in the sandbox (picking the right Docker base image per repo is hard).
 - Running legacy code from a repo is risky, so sandbox everything.

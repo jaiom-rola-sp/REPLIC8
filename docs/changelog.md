@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Security interfaces in the PRD
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Added PRD section 7, "Security interfaces", matched to the existing backend: `Sandbox.run`, `SandboxError` (with planned subclasses), `Notifier.notify`, and planned `validate_call` and `trigger_heal`. Renumbered the later PRD sections (Technology choices is now 8, Open questions 11, Risks 12) and fixed the two references to them. Added a `CLAUDE.md` rule to use these interfaces.
+- **Requirement(s):** FR-4, FR-12, FR-13
+- **Commit:** this commit
+
 ## 2026-11-07: Nemotron client, prompts, and self-heal generation
 
 - **Who:** Claude (for Aryan)
