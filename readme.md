@@ -13,5 +13,6 @@ If you use `[[wikilinks]]`, they won't render on GitHub. Prefer standard `[text]
 
 ## Project docs
 
+- [PRD](docs/prd.md): the Replic8 product plan.
 - [Requirements](docs/requirements.md): what we're building and its status.
 - [Changelog](docs/changelog.md): what changed and why.

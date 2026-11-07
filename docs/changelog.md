@@ -2,9 +2,9 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
-## YYYY-MM-DD: <!-- short title -->
+## 2026-11-07: Draft PRD and fill requirements
 
-- **Who:** <!-- name -->
-- **What changed:** <!-- one or two lines -->
-- **Requirement(s):** <!-- FR-1, etc., from [requirements](requirements.md) -->
-- **Commit:** <!-- short hash -->
+- **Who:** Claude (for Jaiom)
+- **What changed:** Added `docs/prd.md` (draft v0.1) and filled `docs/requirements.md` with FR-1 to FR-10, decisions, and non-functional requirements.
+- **Requirement(s):** FR-1 to FR-10 (all created)
+- **Commit:** see git log for "Add Replic8 PRD"
