@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Photon send-only notifications
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Added feature F5 and FR-12 (send-only Photon updates to a manager), plus a Photon tech row, open questions, and a security requirement.
+- **Requirement(s):** FR-12
+- **Commit:** see git log for "Add Photon notifications"
+
 ## 2026-11-07: Any-language support
 
 - **Who:** Claude (for Jaiom)

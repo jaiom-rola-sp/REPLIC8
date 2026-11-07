@@ -47,6 +47,16 @@ A web view of the unified API: nodes for systems and operations, edges for share
 ### F4. Extend (FR-9, stretch)
 Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module.
 
+### F5. Manager updates via Photon, send-only (FR-12)
+Replic8 texts status updates to one or more approved phone numbers (e.g. a manager) through [Photon](https://photon.codes), a messaging API for AI agents that sends over iMessage with SMS/RCS fallback.
+
+- **Outbound only.** Replic8 never reads replies and never accepts commands over messaging. No inbound webhook is registered, so a text can't trigger any action. This is the "no write access" rule.
+- **Events sent:** system onboarded, wrapper published, failure detected, self-heal started, repair saved as a new version, repair failed or rolled back.
+- **Safe content:** short summaries only. Never source code, secrets, tokens, or raw customer data.
+- **Allowlist:** numbers come from config (env var), not the repo.
+- **Non-blocking:** if Photon is down, log it and keep going. A failed text must never stop a conversion or repair.
+- **Noise control:** group repeated failures into one message.
+
 ## 5. Architecture
 
 ```mermaid
@@ -76,6 +86,7 @@ flowchart LR
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
 | Hosting | One cloud VM running docker compose | Simplest for a demo | **TBD** provider |
+| Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; lets us text a manager without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning |
 
 ## 7. Anti-hallucination rules (for humans and AIs)
 
@@ -90,6 +101,7 @@ flowchart LR
 | P0 | 2 demo legacy apps, ingest, generate, verify, gateway, MCP + REST | FR-1 to 5, 10 |
 | P0 | Graph showing both systems and their links | FR-6 |
 | P1 | Scripted break + auto-repair + new version saved | FR-7, 8 |
+| P1 | Photon send-only text updates on key events | FR-12 |
 | Stretch | 3rd demo app; extension module | FR-9, 10 |
 
 Suggested order: demo apps and ingest, then generate and verify, then gateway, then graph, then self-healing, then polish the demo script.
@@ -103,6 +115,8 @@ Suggested order: demo apps and ingest, then generate and verify, then gateway, t
 - [ ] What exactly will we break in the demo, and what does the repair look like on screen?
 - [ ] Team roles: who owns ingest, generation, gateway, UI, demo apps?
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine?
+- [ ] Photon: do we have an account and API key? Does it give us a send-only credential? Which number sends, and which number(s) receive?
+- [ ] Photon: which events are worth a text, and how often before it becomes spam?
 
 ## 10. Risks
 
