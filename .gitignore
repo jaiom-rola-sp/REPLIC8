@@ -1,3 +1,8 @@
 .obsidian/
 .graphifyignore
 graphify-out/
+backend/data/
+data/
+__pycache__/
+*.egg-info/
+.pytest_cache/

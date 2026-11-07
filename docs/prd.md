@@ -142,6 +142,10 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine? How are write operations authorized later?
 - [ ] Photon: do we have an account and API key? Does it give us a send-only credential? Which number sends, and which receives?
 - [ ] Photon: which events are worth a text, and how often before it becomes spam?
+- [ ] Proposed (backend): Nemotron only writes a JSON proposal (which function, schemas, fixed command) and never code that runs on the host. Any generated wrapper code runs only inside the sandbox. Agree?
+- [ ] Do the demo legacy systems need a writable database or folder? The sandbox is read-only and offline by default.
+- [ ] Registry history: plain versioned files (built) or also a git commit per version (PRD section 7)?
+- [ ] Who holds the gateway tokens, and do we need per-caller scopes after the demo?
 
 ## 11. Risks
 

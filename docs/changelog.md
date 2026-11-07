@@ -2,6 +2,20 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Backend foundation and security model
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `backend/` (FastAPI): safe GitHub ingest, hardened Docker sandbox, model-output guard, versioned registry that only publishes tested operations, token-protected read-only gateway, send-only notifier. Added `docs/security.md` (threats T1 to T14 and known gaps) and 73 tests. Added open questions to the PRD.
+- **Requirement(s):** FR-1, FR-2, FR-3, FR-4, FR-5, FR-8, FR-11, FR-12, FR-13
+- **Commit:** this commit
+
+## 2026-11-07: Stricter git rule for AIs
+
+- **Who:** Claude (for Aryan)
+- **What changed:** `CLAUDE.md` rule 4: no `git add`, `commit`, or `push` without the user's explicit approval each time; automated hooks don't count as approval.
+- **Requirement(s):** none (process)
+- **Commit:** this commit (with the backend foundation)
+
 ## 2026-11-07: Keep graphify local
 
 - **Who:** tonia (with Claude Code)
