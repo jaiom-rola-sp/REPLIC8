@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: CLAUDE.md rule uses Sandbox.run
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** `CLAUDE.md` rule 6 now says `Sandbox.run` instead of `run_in_sandbox`, to match PRD section 7 and the backend code.
+- **Requirement(s):** FR-4, FR-13
+- **Commit:** this commit
+
 ## 2026-11-07: Security interfaces in the PRD
 
 - **Who:** Krish Thapa (with Claude)

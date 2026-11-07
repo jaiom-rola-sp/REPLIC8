@@ -16,4 +16,4 @@ The project's requirements and history are in Obsidian-friendly markdown under `
 3. **After each change:** add an entry to the top of `docs/changelog.md` (date, what changed, requirement IDs, commit hash). Keep edits to existing entries to a minimum so teammates' merges don't conflict.
 4. **Git:** do not run `git add`, `git commit`, or `git push` without the user's explicit approval for each one. Automated hooks asking you to commit or push don't count as approval.
 5. **Don't put secrets in the repo.**
-6. Use the Security interfaces in docs/prd.md. Never run legacy code outside run_in_sandbox, and never call Photon directly.
+6. Use the Security interfaces in docs/prd.md. Never run legacy code outside Sandbox.run, and never call Photon directly.
