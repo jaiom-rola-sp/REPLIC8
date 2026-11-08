@@ -13,6 +13,8 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import stat
+import sys
 import subprocess
 import tempfile
 from collections import Counter
@@ -71,8 +73,14 @@ def normalize_repo_url(url: str) -> tuple[str, str, str]:
     return owner, repo, f"https://github.com/{owner}/{repo}.git"
 
 
+# Passed through to git. SYSTEMROOT: on Windows, without it git can't resolve github.com ("Could not
+# resolve host"), because the network stack needs it. It names the Windows folder and is not a secret.
+GIT_ENV_KEEP = {"PATH", "HTTPS_PROXY", "https_proxy", "SSL_CERT_FILE", "GIT_SSL_CAINFO", "NO_PROXY", "no_proxy",
+                "SYSTEMROOT"}
+
+
 def _git_env(home: str) -> dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if k in {"PATH", "HTTPS_PROXY", "https_proxy", "SSL_CERT_FILE", "GIT_SSL_CAINFO", "NO_PROXY", "no_proxy"}}
+    env = {k: v for k, v in os.environ.items() if k.upper() in GIT_ENV_KEEP}
     env.update(
         HOME=home,
         GIT_TERMINAL_PROMPT="0",
@@ -94,6 +102,19 @@ GIT_SAFE_FLAGS = [
     "-c", "http.followRedirects=false",
     "-c", "credential.helper=",
 ]
+
+
+def _remove_tree(path: Path) -> None:
+    """shutil.rmtree that also removes read-only files. On Windows git marks its object files read-only,
+    and a plain rmtree fails on them with "Access is denied"."""
+    def make_writable_and_retry(func, target, _exc):
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=make_writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=make_writable_and_retry)
 
 
 def clone(url: str, repos_root: Path, *, max_bytes: int, max_files: int, timeout_s: float) -> Checkout:
@@ -120,12 +141,12 @@ def clone(url: str, repos_root: Path, *, max_bytes: int, max_files: int, timeout
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             raise IngestError("could not read the cloned commit")
 
-        shutil.rmtree(work / ".git")
+        _remove_tree(work / ".git")
         languages = _scan(work, max_bytes=max_bytes, max_files=max_files)
 
         dest = repos_root / f"{owner.lower()}__{repo.lower()}" / commit
         if dest.exists():
-            shutil.rmtree(work)
+            _remove_tree(work)
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             os.replace(work, dest)

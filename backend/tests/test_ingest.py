@@ -46,3 +46,28 @@ def test_scan_drops_symlinks_and_enforces_limits(tmp_path):
         _scan(tmp_path, max_bytes=5, max_files=10)
     with pytest.raises(IngestError):
         _scan(tmp_path, max_bytes=10_000, max_files=1)
+
+
+def test_git_env_keeps_only_safe_variables(monkeypatch):
+    from replic8.ingest import _git_env
+    monkeypatch.setenv("SYSTEMROOT", r"C:\Windows")        # Windows needs it to resolve github.com
+    monkeypatch.setenv("NVIDIA_API_KEY", "secret")
+    monkeypatch.setenv("REPLIC8_ADMIN_TOKENS", "secret")
+    env = _git_env("/tmp/home")
+    assert env["SYSTEMROOT"] == r"C:\Windows"
+    assert "NVIDIA_API_KEY" not in env and "REPLIC8_ADMIN_TOKENS" not in env
+    assert env["HOME"] == "/tmp/home" and env["GIT_TERMINAL_PROMPT"] == "0"
+
+
+def test_remove_tree_handles_read_only_files(tmp_path):
+    # On Windows git's pack files are read-only, and a plain rmtree fails with "Access is denied".
+    import os
+    import stat
+    from replic8.ingest import _remove_tree
+    target = tmp_path / ".git" / "objects" / "pack"
+    target.mkdir(parents=True)
+    pack = target / "pack-1.idx"
+    pack.write_bytes(b"x")
+    os.chmod(pack, stat.S_IREAD)
+    _remove_tree(tmp_path / ".git")
+    assert not (tmp_path / ".git").exists()

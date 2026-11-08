@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: GitHub imports work on Windows
+
+- **Who:** Claude (for Toni)
+- **What changed:** `ingest.py` now passes `SYSTEMROOT` to git. On Windows, git started without it can't resolve `github.com`, so every GitHub import (legacy and established) failed with "clone failed (repo missing, private, or unreachable)". The variable only names the Windows folder; secrets are still stripped. Also, deleting the clone's `.git` folder failed on Windows ("Access is denied") because git marks its object files read-only; the clone cleanup now clears that flag first. Two new tests in `tests/test_ingest.py`.
+- **Requirement(s):** FR-1, FR-15
+- **Validation:** reproduced on Windows (`git ls-remote` with the old environment: "Could not resolve host: github.com"; with `SYSTEMROOT`: works), then a real clone of this repo from GitHub on Windows succeeded end to end. Backend tests: 215 passed.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: More languages, step 4: the command-line wrapper
 
 - **Who:** Claude (for Jaiom)
