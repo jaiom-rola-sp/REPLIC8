@@ -23,8 +23,6 @@ Azure for Students gives credit without a card. In the [Azure portal](https://po
 5. When it's deployed, open the VM. Under **Networking**, edit the SSH (22) rule's **Source** to *My IP address*, so only you can SSH in. Leave 80 and 443 open to the internet.
 6. **Stop the VM when you're not using it** (Overview, **Stop**) so it doesn't use up the student credit. The public IP and hostname stay the same if you set the IP to **Static** under Networking, then the public IP.
 
-**Other hosts:** the setup script is plain Ubuntu 24.04, so a Vultr or DigitalOcean (GitHub Student Developer Pack) VM with 2 vCPU / 4 GB works the same way: open ports 22, 80 and 443, and use your own domain or `<ip-with-dashes>.sslip.io` as the hostname. The fallback from `docs/prd.md` section 8, a laptop plus a free tunnel, also works with the local run steps in `backend/README.md`.
-
 ## 2. Give it a hostname (free)
 
 HTTPS needs a hostname, because the Vercel site is HTTPS and browsers block calls to plain HTTP. Azure gives one for free:
@@ -120,3 +118,19 @@ sudo grep TOKENS /etc/replic8/replic8.env
 ## Rehearsal
 
 On 2026-11-08 the install was rehearsed in the development container: a separate non-root service user in the docker group, a venv installed from a repo copy, pre-downloaded grammars, settings from an env file, then health, CORS (Vercel origin allowed, other origins refused), MCP with the server's hostname, onboarding of both systems, and the MCP demo. systemd, Caddy's certificate and the firewall could not be exercised there; `caddy validate` and `shellcheck` pass.
+
+## Fallback: laptop plus a free tunnel
+
+If the VM isn't available on demo day, run REPLIC8 on a laptop (see `backend/README.md` and `readme.md`) and publish it with a free Cloudflare quick tunnel. No account is needed.
+
+1. Start the backend on the laptop as usual (it listens on `127.0.0.1:8000`).
+2. Install `cloudflared` (Windows: `winget install --id Cloudflare.cloudflared`) and run:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8000
+```
+
+3. It prints an address like `https://<random-words>.trycloudflare.com`. Restart the backend with that hostname added to `REPLIC8_ALLOWED_HOSTS` (for MCP) and the Vercel address in `REPLIC8_CORS_ORIGINS`.
+4. In the dashboard's Settings, use the tunnel address as the gateway address. Agents use `<tunnel address>/mcp`.
+
+The address changes every time the tunnel starts, and anyone with it can reach the gateway's login, so use fresh tokens and stop the tunnel after the demo (`docs/security.md`).

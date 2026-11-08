@@ -46,12 +46,23 @@ How REPLIC8's backend handles the trust problems in turning untrusted legacy cod
 
 ## Known gaps (not done yet)
 
-- ~~**Sandbox images** must be pinned by digest before the demo, not by tag.~~ **Done 2026-11-07:** startup refuses images not pinned by digest, and `docker run --pull never` stops downloads at call time.
-- **Docker socket:** the backend needs Docker access, which is root-equivalent on the host. Run the backend on the demo VM only, not on a shared machine. A rootless Docker or gVisor runtime would be stronger.
-- **Legacy code that needs its own database or a writable directory** won't run under `--read-only` without an extra tmpfs. Decide per demo system.
-- **Tokens** are static, shared secrets with no expiry or rotation (per-token scopes now exist, see T9). Fine for a demo, not for production.
+Updated 2026-11-08.
+
+- **Docker socket:** the backend needs Docker access, which is root-equivalent on the host. Run it only on the dedicated demo VM (`deploy/vm/`), never on a shared machine. A rootless Docker or gVisor runtime would be stronger.
+- **Tokens** are static, shared secrets with no expiry or rotation. Per-token scopes exist (T9). Fine for a demo, not for production.
+- **Scopes and dashboard imports:** a system imported from the dashboard is invisible to scoped gateway tokens until an operator adds its namespace to `REPLIC8_TOKEN_SCOPES` and restarts (open question in `docs/prd.md` section 11). Fail-closed is the safe default; the gap is usability.
+- **Browser storage:** the dashboard keeps the gateway token in session storage for the tab (the admin token stays in memory only). Script injection into the dashboard could read it, so the dashboard must not render untrusted HTML. Event text is already sanitized server-side (T28).
+- **Laptop-plus-tunnel fallback** publishes the gateway on a public `trycloudflare.com` address. Tokens still protect every route, but use fresh tokens for the demo and stop the tunnel afterwards. Add the tunnel's hostname to `REPLIC8_ALLOWED_HOSTS` and the Vercel origin to `REPLIC8_CORS_ORIGINS`.
+- **Legacy code that needs its own database or a writable directory** won't run under `--read-only` without an extra tmpfs. Decide per system.
 - **Redaction is pattern-based.** It catches common secret shapes, not all of them. Don't ingest repos with real customer data or live credentials.
-- **Model-written input schemas can be wrong.** In live testing the model once wrote a `request_id` pattern that rejected the real ID `R-1001`. Operator-supplied examples catch this; without them, a too-strict schema just fails its contract test.
-- **Contract tests prove consistency, not correctness.** A repair must reproduce recorded answers, but the first recording is only as good as its example inputs. Give real example IDs when onboarding.
+- **Contract tests prove consistency, not correctness.** A repair must reproduce recorded answers, but the first recording is only as good as its example inputs. Give real known-good values when onboarding (`known_values`, or examples).
 - **Background jobs are in-process.** Onboarding and repairs run in threads of the gateway process; a restart mid-job drops the job (the registry stays consistent).
-- **Not built yet:** the `inferred` and `black-box` tiers, and token expiry or rotation. (Per-token scopes exist, see T9. Photon texts were dropped, so T13 no longer applies.)
+- **Data at rest** (clones, builds, registry, event log) is plain files on the VM disk. Fine for public demo repos; encrypt the disk or add a database with access control before real customer code.
+- **Not built yet:** the `inferred` and `black-box` tiers and the command-line wrapper (FR-14), and token expiry or rotation.
+
+### Closed since the first list
+
+- **Sandbox images pinned by digest** (2026-11-07): startup refuses unpinned images and `docker run --pull never` stops downloads at call time; `deploy/vm/setup.sh` pins the runtime image after each build.
+- **Model-written input rules rejecting real values** (2026-11-08): example values given at onboarding override the model's value rules (`schema_adjusted` event), and the propose prompt tells the model not to exclude hyphens in IDs.
+- **Parser hangs on hostile files** (2026-11-08): each file is parsed in a time-limited child process (T30).
+- **Photon texts** dropped, so T13 no longer applies.
