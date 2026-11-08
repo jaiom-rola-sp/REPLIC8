@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Established system import; Extension tab removed
+
+- **Who:** Claude (for Toni)
+- **What changed:** Backend: new `replic8/openapi_spec.py` reads a repo's OpenAPI file (OpenAPI 3.x or Swagger 2.0, YAML or JSON; found automatically in the top three folders or given by path) and lists its operations, with limits on file size, operation count, `$ref` depth and schema size, and YAML aliases refused. New `replic8/established.py` stores established systems apart from the legacy registry (`<data_dir>/established/<system>.json`, replaced on re-import) and imports them in the background with `onboard_stage` events (fetch, read, list) and a new `listed` event. Nothing in the repo is run and the system is never called: its operations aren't in the registry, so REST, MCP and the generated OpenAPI can't serve them. New routes `POST /v1/admin/established` (admin) and `GET /v1/established`. `/v1/graph` now includes established systems, a `uses` edge into the gateway for a parent company, and field-name links between established and legacy systems. A name can't be used by both kinds. Added the `pyyaml` dependency. Dashboard: the Established system tab works (optional API file path, **This is the parent company** checkbox, three-stage progress); the Extension tab is removed; established systems appear above REPLIC8 in the graph (the parent with a line into it), in Systems, and in the inspector with their listed operations. Docs: FR-9 dropped, FR-15 and WEB-13 built, FR-10 and WEB-8 notes, a new decision, PRD F4/F6, the combine open question closed, backend and web READMEs.
+- **Requirement(s):** FR-9, FR-10, FR-15, WEB-8, WEB-13
+- **Validation:** backend 181 passed, 14 skipped (27 new tests: the spec reader, refs/allOf/cycles, Swagger 2, alias refusal, path traversal, name clashes, import events, re-import replaces, established tools return 404 and are absent from `/v1/operations` and `/v1/openapi.json`, graph parent edge and `part_id` link). Web: 25 tests pass and the build is clean. Not tested: an import from a real GitHub repo (the same `fetch` code the legacy import uses, exercised here with a local repo), and the dashboard in a browser.
+- **Commit:** this commit
+
 ## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
 
 - **Who:** Aryan Mandapati

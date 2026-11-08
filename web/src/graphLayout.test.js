@@ -3,6 +3,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { graphData, columns, INLINE_MAX, MAX_SHOWN, NODE_W } from './graphLayout.js';
 
+test('established systems sit above the gateway and only the parent links into it', () => {
+  const ops = [{ tool: 'inventory.check_stock', tier: 'parsed', version: 1, access: 'read' }];
+  const established = [
+    { system: 'company_a', title: 'Company A platform', parent: true, operations: [{ tool: 'company_a.forecast' }] },
+    { system: 'payroll', title: '', parent: false, operations: [] },
+  ];
+  const links = [{ source: 'company_a', target: 'inventory', fields: ['part_id'], evidence: 'schema' }];
+  const g = graphData(ops, true, -1, links, new Set(), established);
+  const node = (id) => g.nodes.find((n) => n.id === id);
+  assert.equal(node('company_a').data.eyebrow, 'PARENT COMPANY · ESTABLISHED');
+  assert.equal(node('payroll').data.label, 'payroll');
+  assert.ok(node('company_a').position.y < node('gateway').position.y && node('gateway').position.y < node('inventory').position.y);
+  assert.deepEqual(g.edges.filter((e) => e.target === 'gateway').map((e) => e.source), ['company_a']);
+  assert.ok(g.edges.some((e) => e.id === 'link-company_a-inventory'));
+  assertSound(g);
+});
+
 // 11 systems with 25 operations each, plus one with 120: 395 operations in all.
 const make = (system, n, tier = 'parsed') => Array.from({ length: n }, (_, i) => ({
   tool: `${system}.op_${String(i).padStart(3, '0')}`, tier, version: 1, access: i % 10 === 9 ? 'write' : 'read' }));

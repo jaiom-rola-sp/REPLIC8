@@ -12,6 +12,22 @@ export const STAGES = [
   ['publish', 'Publish'],
 ];
 
+// An established system is only read, never run: fetch the repo, read its OpenAPI file, list it.
+export const ESTABLISHED_STAGES = [
+  ['fetch', 'Import from GitHub'],
+  ['read', 'Read the API file'],
+  ['list', 'Add to the graph'],
+];
+
+// Optional path to the OpenAPI file inside the repo. Mirrors SPEC_PATH in backend/replic8/openapi_spec.py.
+export function checkSpecPath(input) {
+  const path = String(input || '').trim();
+  if (!path) return { path: '' };
+  if (!/^[A-Za-z0-9._/-]{1,200}$/.test(path)) return { error: 'The API file path may only use letters, numbers, . _ - and /.' };
+  if (path.startsWith('/') || path.split('/').includes('..') || !/\.(ya?ml|json)$/i.test(path)) return { error: 'Give a .yaml, .yml or .json file inside the repo, like docs/openapi.yaml.' };
+  return { path };
+}
+
 const SYSTEM_NAME = /^[a-z][a-z0-9_]{0,31}$/;
 const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const REPO = /^[A-Za-z0-9._-]{1,100}$/;
@@ -60,15 +76,16 @@ export function parseKnownValues(text) {
 
 // Turns the gateway's event log into per-stage state for one import.
 // `afterId` is the last event id seen before the import started, so older runs are ignored.
-export function progress(events, system, afterId = 0) {
+// Legacy imports end with `published`; established ones end with `listed` and use ESTABLISHED_STAGES.
+export function progress(events, system, afterId = 0, stageList = STAGES, doneKind = 'published') {
   const mine = events.filter((e) => e.system === system && e.id > afterId);
   const seen = mine.filter((e) => e.kind === 'onboard_stage').map((e) => e.detail);
   const failed = [...mine].reverse().find((e) => e.kind === 'onboard_failed');
-  const published = [...mine].reverse().find((e) => e.kind === 'published');
+  const published = [...mine].reverse().find((e) => e.kind === doneKind);
   const status = failed ? 'failed' : published ? 'published' : mine.some((e) => e.kind === 'onboard_started') ? 'running' : 'starting';
-  const current = seen.length ? STAGES.findIndex(([key]) => key === seen[seen.length - 1]) : -1;
+  const current = seen.length ? stageList.findIndex(([key]) => key === seen[seen.length - 1]) : -1;
 
-  const stages = STAGES.map(([key, label], i) => {
+  const stages = stageList.map(([key, label], i) => {
     let state = 'pending';
     if (status === 'published' || i < current) state = 'done';
     else if (i === current) state = status === 'failed' ? 'failed' : 'active';

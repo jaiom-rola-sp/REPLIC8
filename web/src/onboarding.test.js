@@ -1,7 +1,23 @@
 // Run with: node --test src/onboarding.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkGithubUrl, checkSystemName, progress } from './onboarding.js';
+import { ESTABLISHED_STAGES, checkGithubUrl, checkSpecPath, checkSystemName, progress } from './onboarding.js';
+
+test('the API file path must be a yaml or json file inside the repo', () => {
+  assert.equal(checkSpecPath('').path, '');
+  assert.equal(checkSpecPath(' docs/openapi.yaml ').path, 'docs/openapi.yaml');
+  for (const bad of ['../x.yaml', '/abs.yaml', 'a/../b.json', 'spec.txt', 'has space.yaml', 'a\\b.yaml']) assert.ok(checkSpecPath(bad).error, bad);
+});
+
+test('an established import finishes on its listed event', () => {
+  const e = (id, kind, extra = {}) => ({ id, kind, system: 'company_a', tool: '', detail: '', version: null, ...extra });
+  const running = progress([e(1, 'onboard_started'), e(2, 'onboard_stage', { detail: 'read' })], 'company_a', 0, ESTABLISHED_STAGES, 'listed');
+  assert.equal(running.status, 'running');
+  assert.deepEqual(running.stages.map((s) => s.state), ['done', 'active', 'pending']);
+  const done = progress([e(1, 'onboard_started'), e(3, 'listed', { operations: 7 })], 'company_a', 0, ESTABLISHED_STAGES, 'listed');
+  assert.equal(done.status, 'published');
+  assert.equal(done.operations, 7);
+});
 
 test('accepts public GitHub repo URLs and normalizes them', () => {
   assert.equal(checkGithubUrl('https://github.com/jaiom-rola-sp/REPLIC8').url, 'https://github.com/jaiom-rola-sp/REPLIC8');

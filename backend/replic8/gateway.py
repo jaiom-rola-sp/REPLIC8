@@ -9,11 +9,13 @@ Routes
   GET  /v1/events?after=N               activity log
   GET  /v1/systems                      systems with their current version
   GET  /v1/systems/{system}/versions    version history (FR-8)
+  GET  /v1/established                  established systems, listed only, never called (FR-15)
   /mcp                                  MCP over Streamable HTTP (FR-2, FR-5)
   POST /v1/admin/systems                onboard a repo            (admin token)
   POST /v1/admin/systems/{s}/heal       start a repair            (admin token)
   POST /v1/admin/systems/{s}/check      check for code changes    (admin token)
   POST /v1/admin/systems/{s}/rollback   move to an older version  (admin token)
+  POST /v1/admin/established            list an established system from its OpenAPI file (admin token)
 
 Security posture:
 - Every route except /health needs a bearer token. Gateway tokens read and call;
@@ -43,6 +45,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field, field_validator
 
 from .config import Settings
+from .established import Catalog, EstablishedError, EstablishedImporter, legacy_name_taken
 from .events import EventLog
 from .executor import Executor
 from .graph import build_graph
@@ -80,6 +83,15 @@ class OnboardRequest(BaseModel):
             if any(not 1 <= len(i) <= 64 or "=" in i or any(ord(c) < 32 for c in i) for i in items):
                 raise ValueError("bad known_values")
         return value
+
+
+class EstablishedRequest(BaseModel):
+    system: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    repo_url: str = Field(max_length=300)
+    # True for the parent company: its agents use REPLIC8, so the graph draws it into the gateway.
+    parent: bool = False
+    # Where the OpenAPI file is in the repo, if it isn't found automatically.
+    spec_path: str | None = Field(default=None, pattern=r"^[A-Za-z0-9._/-]{1,200}$")
 
 
 class RollbackRequest(BaseModel):
@@ -179,12 +191,14 @@ def openapi_for(registry: Registry, settings: Settings) -> dict[str, Any]:
 
 
 def create_app(settings: Settings, registry: Registry, executor: Executor, *,
-               pipeline=None, events: EventLog | None = None) -> FastAPI:
+               pipeline=None, events: EventLog | None = None, catalog: Catalog | None = None) -> FastAPI:
     if not settings.gateway_tokens:
         raise RuntimeError("REPLIC8_GATEWAY_TOKENS is empty; refusing to start an open gateway")
     settings.validate()
     validator = Validator(settings, registry)
     events = events or (pipeline.events if pipeline is not None else EventLog())
+    catalog = catalog or Catalog(settings.data_dir)
+    importer = EstablishedImporter(settings, catalog, registry, events)
 
     def on_failure(tool: str, exc: SandboxError) -> None:
         if pipeline is not None:
@@ -278,7 +292,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
 
     @app.get("/v1/graph")
     def graph(who: str = Depends(reader)) -> dict[str, Any]:
-        return build_graph(registry, settings.write_allowlist)
+        return build_graph(registry, settings.write_allowlist, catalog)
 
     @app.get("/v1/events")
     def list_events(after: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500),
@@ -301,9 +315,38 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
         return {"current": current.version if current else None,
                 "versions": [_version_view(registry.load(system, v)) for v in registry.versions(system)]}
 
+    @app.get("/v1/established")
+    def established(who: str = Depends(reader)) -> dict[str, Any]:
+        return {"systems": [entry.view() for entry in catalog.all()]}
+
+    @app.post("/v1/admin/established", status_code=202)
+    def import_established(body: EstablishedRequest, who: str = Depends(admin)) -> dict[str, Any]:
+        try:
+            canonical_url(body.repo_url, settings.local_repo_root)
+        except IngestError:
+            raise HTTPException(422, "repository URL not accepted (use https://github.com/owner/repo)") from None
+        if legacy_name_taken(registry, body.system) or (pipeline is not None and pipeline.busy(body.system)):
+            raise HTTPException(409, "that name is already used by a legacy system")
+        if importer.busy(body.system):
+            raise HTTPException(409, "this system is already being processed")
+
+        def work():
+            try:
+                importer.run(body.system, body.repo_url, parent=body.parent, spec_path=body.spec_path)
+            except EstablishedError as exc:  # reported through events
+                log.info("listing %s failed: %s", body.system, exc)
+            except Exception:  # noqa: BLE001
+                log.exception("listing %s failed", body.system)
+                events.add("onboard_failed", system=body.system, detail="internal error")
+
+        threading.Thread(target=work, name=f"established-{body.system}", daemon=True).start()
+        return {"status": "started", "system": body.system, "watch": "/v1/events"}
+
     @app.post("/v1/admin/systems", status_code=202)
     def onboard(body: OnboardRequest, who: str = Depends(admin)) -> dict[str, Any]:
         p = need_pipeline()
+        if catalog.get(body.system) is not None or importer.busy(body.system):
+            raise HTTPException(409, "that name is already used by an established system")
         # Refuse bad input now: once the work runs in the background there is nobody to tell.
         try:
             canonical_url(body.repo_url, settings.local_repo_root)
