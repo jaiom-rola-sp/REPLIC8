@@ -4,6 +4,11 @@
  * Industrial logistics: replacement-part stock and shipping lanes.
  * Written 2003 for J2SE 1.4 (no generics). Demo stand-in for
  * REPLIC8 (FR-10). Read-only lookups.
+ * CHANGE LOG
+ *   2003-05-12  GDH  Original: checkStock, getShippingOptions.
+ *   2003-09-02  GDH  Guard of 20 input lines (batch reader hung, PIL-031).
+ *   2004-03-08  MKB  Release 2 commands moved to Sourcing, WhseRpt, Purch.
+ *   2004-03-08  MKB  NOTE: helpers here are duplicated in PilRecs (PIL-140).
  * Line protocol: command on line 1, KEY=VALUE lines, END.
  * ============================================================
  */
@@ -22,6 +27,8 @@ public class Inventory {
 
     private static final String STOCK_FILE = "data/stock.dat";
     private static final String LANES_FILE = "data/lanes.dat";
+    /** Set -Dpil.debug=Y to trace commands on stderr (never on stdout - the batch reader parses it). */
+    static final boolean DEBUG = "Y".equals(System.getProperty("pil.debug"));
 
     public static void main(String[] args) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -44,16 +51,63 @@ public class Inventory {
         }
         String partId = params.containsKey("PART-ID") ? (String) params.get("PART-ID") : "";
         String destination = params.containsKey("DESTINATION") ? (String) params.get("DESTINATION") : "";
+        String warehouse = params.containsKey("WAREHOUSE") ? (String) params.get("WAREHOUSE") : "";
+        String supplierId = params.containsKey("SUPPLIER-ID") ? (String) params.get("SUPPLIER-ID") : "";
+        String status = params.containsKey("STATUS") ? (String) params.get("STATUS") : "";
+        String quantity = params.containsKey("QUANTITY") ? (String) params.get("QUANTITY") : "";
 
         cmd = cmd.trim();
         if ("checkStock".equalsIgnoreCase(cmd)) {
             checkStock(partId);
         } else if ("getShippingOptions".equalsIgnoreCase(cmd)) {
             getShippingOptions(partId, destination);
+        } else if (runRelease2(cmd, partId, destination, warehouse, supplierId, status, quantity)) {
+            // handled by a release 2 class (2004)
         } else {
             System.out.println("ERROR=UNKNOWN-COMMAND");
             System.exit(2);
         }
+    }
+
+    /**
+     * Release 2 commands (MKB 2004). Returns false if the command is not one of ours.
+     * Order matters: PIL-150 had getCheapestShipping shadowed by a prefix check.
+     */
+    static boolean runRelease2(String cmd, String partId, String destination, String warehouse,
+                               String supplierId, String status, String quantity) throws IOException {
+        if (DEBUG) {
+            System.err.println("PIL R2 CMD=" + cmd);
+        }
+        if (WhseRpt.TX_WAREHOUSE.equalsIgnoreCase(cmd)) {
+            WhseRpt.getWarehouse(warehouse);
+            return true;
+        }
+        if (WhseRpt.TX_LOWSTOCK.equalsIgnoreCase(cmd)) {
+            WhseRpt.listLowStock(warehouse);
+            return true;
+        }
+        if (Purch.TX_SUPPLIER.equalsIgnoreCase(cmd)) {
+            Purch.getSupplier(supplierId);
+            return true;
+        }
+        if (Sourcing.TX_SOURCING.equalsIgnoreCase(cmd)) {
+            Sourcing.getPartSourcing(partId);
+            return true;
+        }
+        if (Purch.TX_POS.equalsIgnoreCase(cmd)) {
+            Purch.listPoLines(partId, status);
+            return true;
+        }
+        if (Sourcing.TX_CHEAPEST.equalsIgnoreCase(cmd)) {
+            Sourcing.getCheapestShipping(partId, destination);
+            return true;
+        }
+        if (Sourcing.TX_QUOTE.equalsIgnoreCase(cmd)) {
+            Sourcing.quoteDelivery(partId, destination, quantity);
+            return true;
+        }
+        // if ("getBackorders".equalsIgnoreCase(cmd)) { ... }   removed 2006, PIL-205
+        return false;
     }
 
     /**

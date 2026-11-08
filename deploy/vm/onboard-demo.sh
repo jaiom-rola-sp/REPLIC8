@@ -16,8 +16,8 @@ onboard() {
     -H "Authorization: Bearer $admin" -H "Content-Type: application/json" -d "$1" >/dev/null
 }
 
-onboard '{"system":"maintenance","repo_url":"local://b-maintenance-cobol","examples":{"get_request":[{"request_id":"R-1001"}],"list_open_requests":[{"well_id":"W-17"}]}}'
-onboard '{"system":"inventory","repo_url":"local://c-inventory-java","examples":{"check_stock":[{"part_id":"PMP-2210"}],"get_shipping_options":[{"part_id":"PMP-2210","destination":"PERMIAN"}]}}'
+onboard '{"system":"maintenance","repo_url":"local://b-maintenance-cobol","examples":{"get_request":[{"request_id":"R-1001"}],"list_open_requests":[{"well_id":"W-17"}],"list_site_requests":[{"site":"PERMIAN"}],"get_well":[{"well_id":"W-44"}],"get_service_history":[{"well_id":"W-44"}],"get_technician":[{"tech_id":"T-101"}],"find_available_techs":[{"site":"PERMIAN","skill":"ELECTRICAL"}],"calc_downtime_cost":[{"well_id":"W-44","days":7}],"get_well_risk":[{"well_id":"W-44"}]}}'
+onboard '{"system":"inventory","repo_url":"local://c-inventory-java","examples":{"check_stock":[{"part_id":"PMP-2210"}],"get_shipping_options":[{"part_id":"PMP-2210","destination":"PERMIAN"}],"get_warehouse":[{"warehouse":"ODESSA"}],"list_low_stock":[{"warehouse":"ODESSA"}],"get_supplier":[{"supplier_id":"SUP-030"}],"get_part_sourcing":[{"part_id":"CBL-0500"}],"list_po_lines":[{"part_id":"CBL-0500"}],"get_cheapest_shipping":[{"part_id":"CBL-0500","destination":"PERMIAN"}],"quote_delivery":[{"part_id":"CBL-0500","destination":"PERMIAN","quantity":2}]}}'
 echo "Onboarding started. Waiting for both systems (about 10 to 60 seconds)..."
 
 for _ in $(seq 1 60); do
