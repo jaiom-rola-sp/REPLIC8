@@ -7,7 +7,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Krish Thapa (with Claude)
 - **What changed:** PRD section 7 now lists only `OutputSchemaError` and `FunctionMissing` as planned sandbox subclasses (timeouts and crashes are result fields). The real-container Docker tests and the symlink test now skip on Windows: the sandbox only accepts Linux paths, and symlinks need admin rights on Windows.
 - **Requirement(s):** FR-4
-- **Commit:** this commit
+- **Commit:** 6836c94
 
 ## 2026-11-07: Harden sandbox and notifier
 
