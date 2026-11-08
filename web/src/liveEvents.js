@@ -13,7 +13,8 @@ const ver = (e) => (e.version != null ? ` v${e.version}` : '');
 export function describeEvent(e) {
   const base = { id: e.id, time: clock(e.time) };
   switch (e.kind) {
-    case 'onboard_started': return { ...base, tone: 'work', title: `Import started: ${e.system}`, detail: 'Cloning, building and testing the legacy code' };
+    case 'onboard_started': return { ...base, tone: 'work', title: `Import started: ${e.system}`, detail: e.detail === 'established' ? 'Reading the API file (the system is never called)' : 'Cloning, building and testing the legacy code' };
+    case 'listed': return { ...base, tone: 'ok', title: `Listed ${e.system}`, detail: `${e.operations ?? 0} operations from its API file · not called by REPLIC8` };
     case 'published': return { ...base, tone: 'ok', title: `Published ${e.system}${ver(e)}`, detail: `${e.operations ?? 0} operations live, ${e.rejected ?? 0} rejected` };
     case 'onboard_failed': return { ...base, tone: 'warn', title: `Import failed: ${e.system}`, detail: e.detail || 'See the gateway log' };
     case 'contract_failed': return { ...base, tone: 'warn', title: `Contract test failed: ${e.tool}`, detail: e.detail || '' };
@@ -30,9 +31,9 @@ export function describeEvent(e) {
 }
 
 // These events change what is published, so the operation list and version history should reload.
-export const needsRefresh = (e) => ['published', 'heal_saved', 'rolled_back'].includes(e.kind);
+export const needsRefresh = (e) => ['published', 'heal_saved', 'rolled_back', 'listed'].includes(e.kind);
 
-const TRACKED = new Set(['change_detected', 'heal_started', 'heal_saved', 'heal_failed', 'heal_skipped', 'rolled_back', 'published', 'onboard_failed']);
+const TRACKED = new Set(['change_detected', 'heal_started', 'heal_saved', 'heal_failed', 'heal_skipped', 'rolled_back', 'published', 'listed', 'onboard_failed']);
 
 // The latest thing that happened to one system: { state: working | ok | failed | skipped, text, detail } or null.
 export function systemStatus(events, system) {

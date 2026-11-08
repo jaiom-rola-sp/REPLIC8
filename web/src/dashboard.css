@@ -417,6 +417,13 @@ to{transform:translateX(0);opacity:1}
 .dash-modal textarea:focus{outline:none;border-color:#bdbdbd}
 .dash-field-hint{font-size:10px;line-height:1.7;color:#8a8a8a;margin:-10px 0 20px}
 .dash-field-hint code{font-family:'IBM Plex Mono',monospace;color:#c9c9c9}
+.dash-modal label.dash-check{display:flex;align-items:flex-start;gap:10px;line-height:1.6;cursor:pointer}
+.dash-modal .dash-check input{width:14px;height:14px;margin:2px 0 0;padding:0;flex:none;accent-color:#d9d9d9}
+.dash-modal .dash-check>span{color:#c9c9c9;font-size:10px;margin-left:0}
+.dash-modal .dash-check small{display:block;color:#8a8a8a;font-size:10px}
+.dash-listed-op{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid #222;font-size:11px;color:#c9c9c9}
+.dash-listed-op code{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9a9a9a;flex:none}
+.dash-listed-op small{display:block;color:#7b7b7b;font-size:10px}
 
 /* long lists */
 .dash-load-more{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-top:1px solid #2a2a2a;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a8a8a}

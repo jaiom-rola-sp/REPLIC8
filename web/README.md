@@ -73,7 +73,9 @@ With a gateway connected, **Connect a system** opens the import screen. Without 
 2. The dashboard posts to `POST /v1/admin/systems`, then polls `GET /v1/events` every second and shows the stages: Import, Detect, Build, Find the functions, Propose, Run contract tests, Publish. A failure marks the stage where the import stopped and shows the backend's reason (for example “no supported language yet” or “the sandbox is unavailable”).
 3. When it publishes, the operation list refreshes and the screen reports how many operations were published and rejected.
 
-Only public repositories can be imported. The **Established system** and **Extension** sections are visible but disabled: the backend has no support for them yet. Checks that run before anything is sent (URL shape, system name) mirror the backend's rules in `src/onboarding.js`; run its tests with `node --test src/onboarding.test.js`.
+**Established system** is for a modern system that already has its own API, like the parent company. Enter a name, the repository URL, optionally the path to its OpenAPI file (YAML or JSON), and tick **This is the parent company** if its agents use REPLIC8. The dashboard posts to `POST /v1/admin/established` and shows three stages: Import, Read the API file, Add to the graph. The system then appears above REPLIC8 in the graph (the parent with a line into it) and in Systems; REPLIC8 lists its operations and never calls it. Importing it again replaces the list.
+
+Only public repositories can be imported. Checks that run before anything is sent (URL shape, system name) mirror the backend's rules in `src/onboarding.js`; run its tests with `node --test src/onboarding.test.js`.
 
 Direct HTTP(S) gateway addresses require the backend to allow the browser’s origin. A production deployment needs a same-origin gateway proxy or deliberate CORS configuration; Vite’s development proxy is not part of `dist/`.
 

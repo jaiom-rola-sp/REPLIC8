@@ -74,26 +74,40 @@ function linkEdges(links, names) {
   });
 }
 
-export function graphData(operations, isLive, traceStep, links = [], expanded = new Set()) {
+// Established systems (modern, with their own API) sit in a row above the gateway. REPLIC8 only lists
+// them and never calls them. A parent company's agents use REPLIC8, so it gets a line into the gateway.
+function establishedNodes(established, middle) {
+  const width = established.length * STEP - (STEP - NODE_W);
+  const left = middle - width / 2;
+  return established.map((e, i) => ({
+    id: e.system, type: 'system', position: { x: left + i * STEP, y: 0 },
+    data: { kind: 'established', system: e.system, label: e.title || e.system, eyebrow: e.parent ? 'PARENT COMPANY · ESTABLISHED' : 'ESTABLISHED SYSTEM', subtitle: `${e.operations.length} operations · from its API file`, icon: Globe2, footer: 'Listed only · never called' },
+  }));
+}
+
+export function graphData(operations, isLive, traceStep, links = [], expanded = new Set(), established = []) {
   const cols = columns(operations, expanded);
   const names = cols.map((c) => c.name);
   const middle = cols.length ? (cols[0].left + cols[cols.length - 1].right) / 2 : 0;
   const gx = middle - NODE_W / 2;
 
   if (isLive) {
-    const kids = cols.map((col) => children(col, 470));
+    const top = established.length ? 240 : 0; // the gateway moves down to make room for the established row
+    const kids = cols.map((col) => children(col, top + 470));
     return {
       nodes: [
-        { id: 'gateway', type: 'system', position: { x: gx, y: 0 }, data: { label: 'REPLIC8', eyebrow: 'UNIFIED GATEWAY', subtitle: 'Authenticated operation registry', kind: 'gateway', footer: `${operations.length} registered operations` } },
+        ...establishedNodes(established, middle),
+        { id: 'gateway', type: 'system', position: { x: gx, y: top }, data: { label: 'REPLIC8', eyebrow: 'UNIFIED GATEWAY', subtitle: 'Authenticated operation registry', kind: 'gateway', footer: `${operations.length} registered operations` } },
         ...cols.flatMap((col, i) => [
-          { id: col.name, type: 'system', position: { x: col.center - NODE_W / 2, y: 240 }, data: { label: col.name, eyebrow: 'REGISTERED NAMESPACE', subtitle: `${col.ops.length} operations`, icon: Database, footer: 'Select to inspect' } },
+          { id: col.name, type: 'system', position: { x: col.center - NODE_W / 2, y: top + 240 }, data: { label: col.name, eyebrow: 'REGISTERED NAMESPACE', subtitle: `${col.ops.length} operations`, icon: Database, footer: 'Select to inspect' } },
           ...kids[i].nodes,
         ]),
       ],
       edges: [
+        ...established.filter((e) => e.parent).map((e) => ({ id: `uses-${e.system}`, source: e.system, target: 'gateway', animated: true, label: 'uses REPLIC8', style: { stroke: '#9a9a9a', strokeWidth: 1.3 }, labelStyle: { fill: '#b5b5b5', fontSize: 10 }, labelBgStyle: { fill: '#0d0d0d', fillOpacity: 1 }, labelBgPadding: [8, 5] })),
         ...cols.map((col) => ({ id: `gateway-${col.name}`, source: 'gateway', target: col.name, animated: true, style: { stroke: '#777777', strokeWidth: 1.1 } })),
         ...kids.flatMap((k) => k.edges),
-        ...linkEdges(links, names),
+        ...linkEdges(links, [...names, ...established.map((e) => e.system)]),
       ],
     };
   }

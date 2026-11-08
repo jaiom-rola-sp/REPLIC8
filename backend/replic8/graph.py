@@ -11,10 +11,13 @@ strongest evidence, and how many operation pairs matched) and `truncated` (true 
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .models import Access, Operation, WrapperVersion
 from .registry import Registry
+
+if TYPE_CHECKING:
+    from .established import Catalog
 
 JSON_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean"}
 
@@ -65,17 +68,31 @@ def _compatible(a: set[str], b: set[str]) -> bool:
     return bool(a & b) or (bool(a & numeric) and bool(b & numeric))
 
 
-def build_graph(registry: Registry, write_allowlist: frozenset[str] = frozenset()) -> dict[str, Any]:
+def _spec_fields(schema: dict[str, Any]) -> dict[str, set[str]]:
+    """Like _schema_fields, but a list response (type array) is read through its items."""
+    if schema.get("type") == "array" and isinstance(schema.get("items"), dict):
+        return _schema_fields(schema["items"])
+    return _schema_fields(schema)
+
+
+def build_graph(registry: Registry, write_allowlist: frozenset[str] = frozenset(),
+                catalog: "Catalog | None" = None) -> dict[str, Any]:
+    """Legacy systems (served by REPLIC8) and established systems (listed only, never called).
+
+    A parent company's established system gets a `uses` edge into the gateway: its agents reach the
+    legacy systems through REPLIC8. Data links are drawn between any two systems by field name.
+    """
     nodes: list[dict[str, Any]] = [{"id": "gateway", "type": "gateway", "label": "REPLIC8"}]
     edges: list[dict[str, Any]] = []
-    live: list[tuple[Operation, WrapperVersion]] = []
+    # (tool, namespace, input fields, output fields with evidence)
+    live: list[tuple[str, str, dict[str, set[str]], dict[str, tuple[set[str], str]]]] = []
     for system in registry.systems():
         version = registry.current(system)
         if version is None:
             continue
-        nodes.append({"id": f"system:{system}", "type": "system", "label": system, "version": version.version,
-                      "source_commit": version.source_commit, "repo": version.repo_url,
-                      "operations": len(version.operations)})
+        nodes.append({"id": f"system:{system}", "type": "system", "kind": "legacy", "label": system,
+                      "version": version.version, "source_commit": version.source_commit,
+                      "repo": version.repo_url, "operations": len(version.operations)})
         edges.append({"id": f"gateway->{system}", "source": "gateway", "target": f"system:{system}",
                       "type": "registered"})
         for op in version.operations:
@@ -84,23 +101,39 @@ def build_graph(registry: Registry, write_allowlist: frozenset[str] = frozenset(
                           "enabled": op.access is Access.read or op.tool in write_allowlist})
             edges.append({"id": f"{system}->{op.tool}", "source": f"system:{system}", "target": op.tool,
                           "type": "provides"})
-            live.append((op, version))
+            live.append((op.tool, system, _schema_fields(op.input_schema), output_fields(op, version)))
 
-    inputs = {op.tool: _schema_fields(op.input_schema) for op, _ in live}
+    for entry in (catalog.all() if catalog is not None else []):
+        system = entry.system
+        nodes.append({"id": f"system:{system}", "type": "system", "kind": "established", "label": system,
+                      "title": entry.title, "parent": entry.parent, "source_commit": entry.source_commit,
+                      "repo": entry.repo_url, "spec_file": entry.spec_file, "operations": len(entry.operations),
+                      "called_by_replic8": False})
+        if entry.parent:
+            edges.append({"id": f"{system}->gateway", "source": f"system:{system}", "target": "gateway",
+                          "type": "uses"})
+        for op in entry.operations:
+            tool = f"{system}.{op.name}"
+            nodes.append({"id": tool, "type": "operation", "kind": "established", "label": tool, "system": system,
+                          "method": op.method, "path": op.path, "enabled": False, "callable": False})
+            edges.append({"id": f"{system}->{tool}", "source": f"system:{system}", "target": tool,
+                          "type": "provides"})
+            live.append((tool, system, _spec_fields(op.input_schema),
+                         {k: (v, "schema") for k, v in _spec_fields(op.output_schema).items()}))
+
     links: dict[tuple[str, str], dict[str, Any]] = {}
     drawn = 0
     truncated = False
-    for out_op, out_ver in live:
-        produced = output_fields(out_op, out_ver)
-        for in_op, _ in live:
-            if in_op.namespace == out_op.namespace:
+    for out_tool, out_ns, _, produced in live:
+        for in_tool, in_ns, inputs, _ in live:
+            if in_ns == out_ns:
                 continue
-            matched = [(field, produced[field][1]) for field, types in inputs[in_op.tool].items()
+            matched = [(field, produced[field][1]) for field, types in inputs.items()
                        if field in produced and _compatible(produced[field][0], types)]
             if not matched:
                 continue
-            link = links.setdefault((out_op.namespace, in_op.namespace), {
-                "source": out_op.namespace, "target": in_op.namespace, "fields": set(),
+            link = links.setdefault((out_ns, in_ns), {
+                "source": out_ns, "target": in_ns, "fields": set(),
                 "evidence": "schema", "operation_pairs": 0})
             link["operation_pairs"] += 1
             for field, evidence in matched:
@@ -109,8 +142,8 @@ def build_graph(registry: Registry, write_allowlist: frozenset[str] = frozenset(
                     link["evidence"] = "recorded"
                 if drawn < MAX_DATA_EDGES:
                     drawn += 1
-                    edges.append({"id": f"{out_op.tool}->{in_op.tool}:{field}", "source": out_op.tool,
-                                  "target": in_op.tool, "type": "data", "field": field, "evidence": evidence})
+                    edges.append({"id": f"{out_tool}->{in_tool}:{field}", "source": out_tool,
+                                  "target": in_tool, "type": "data", "field": field, "evidence": evidence})
                 else:
                     truncated = True
     system_links = [{**link, "fields": sorted(link["fields"])} for _, link in sorted(links.items())]

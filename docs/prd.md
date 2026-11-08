@@ -73,7 +73,7 @@ No screenshots or vision model in v1.
 A web view of the unified API: nodes for companies/systems and operations, edges for shared data and calls between systems (A to B, A to C, B to C). Edges come from matching schemas (real field names/types, e.g. a shared part ID), not LLM guesses.
 
 ### F4. Extend (FR-9)
-Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module. **Decided 2026-11-07:** in the 24-hour build, an extension repo can be imported and registered, and shows in the graph labeled "not run yet". Running extension code is not built.
+Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module. **Decided 2026-11-07:** in the 24-hour build, an extension repo can be imported and registered, and shows in the graph labeled "not run yet". Running extension code is not built. **Changed 2026-11-07:** dropped from the hackathon build and the Extension tab removed. Combining systems happens in the customer's own agent, which calls REPLIC8's tools for each system and joins the answers. Engineer-defined combine recipes are a possible later feature.
 
 ### F5. Status updates (FR-12: Photon dropped)
 Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/events`), which the dashboard shows. No texts are sent and nothing is received.
@@ -88,8 +88,8 @@ The web app in `web/`. Built: graph of systems, operations and links (collapses 
 - **Heal and versions:** see F2 (built).
 - **Connect screen** (a new item in the sidebar): the gateway address and copy-paste setup for an agent (Claude Code, a generic MCP client config, a curl example). The token appears as a placeholder, with no "copy with my token" button.
 - **Try it:** on each operation, fill in the inputs from the schema, run a live read-only call, and see the result and where it came from.
-- **Established system import:** import a modern system (like Company A) from GitHub; REPLIC8 reads its OpenAPI file from the repo, lists its operations and shows it as a node in the graph. It is labeled "external, not run by REPLIC8" and is never called.
-- **Extension import:** see F4.
+- **Established system import (built 2026-11-07):** import a modern system (like Company A) from GitHub; REPLIC8 reads its OpenAPI file (YAML or JSON) from the repo, lists its operations and shows it as a node in the graph, labeled "listed only, never called". A **This is the parent company** checkbox draws a line from it into REPLIC8. Re-importing replaces the saved copy.
+- **Extension import:** dropped (see F4).
 - **Real activity feed:** replaces the simulated entries.
 
 ## 6. Architecture
@@ -152,7 +152,7 @@ Everyone must use these functions.
 | P1 | Dashboard heal and versions (check, repair, roll back) and a real activity feed | FR-7, 8, WEB-10 |
 | P1 | Connect screen and Try it | WEB-11, WEB-12 |
 | P1 | Language coverage: command-line wrapper, Python function caller, C, Pascal, Python 3, Perl, PHP in one sandbox image | FR-11, FR-14 |
-| P1 | Established and Extension import tabs | FR-9, FR-15, WEB-13 |
+| P1 | Established import tab (Extension dropped 2026-11-07) | FR-15, WEB-13 |
 | ~~P1~~ | ~~Photon send-only text updates on key events~~ (dropped 2026-11-08) | FR-12 |
 | Stretch | Running extension code; extra legacy modules | FR-9 |
 
@@ -167,7 +167,7 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
   **Proposed 2026-11-08 (in the demo systems):** part ID (e.g. `PMP-2210`) and site region (e.g. `PERMIAN`). See `legacy/README.md`. Team to confirm.
 - [x] Should each demo legacy system live in its own GitHub repo, so REPLIC8 ingests it by URL? **Decided 2026-11-07:** yes. `legacy-b-maintenance-cobol` and `legacy-c-inventory-fortran` are published as public repos under `jaiom-rola-sp`. The Java version of C stays in `legacy/` for now; the Fortran repo stands in for C when importing from GitHub.
-- [ ] Where does the "combine B and C" step live: in Company A's agent, or as a cross-system operation inside REPLIC8?
+- [x] Where does the "combine B and C" step live: in Company A's agent, or as a cross-system operation inside REPLIC8? **Decided 2026-11-07:** in the customer's agent. REPLIC8 makes each system callable; the agent combines the answers.
 - [ ] Team roles: who owns ingest, generation, gateway, graph UI, the demo systems?
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine? How are write operations authorized later?
 - [x] ~~Photon: do we have an account and API key? Does it give us a send-only credential? Which number sends, and which receives?~~ Photon dropped 2026-11-08.
