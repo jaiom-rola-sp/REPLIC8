@@ -77,7 +77,27 @@ Live site: https://www.replic8.work
 
 ## Run it
 
-- Backend: see [backend/README.md](backend/README.md).
+### Start the backend (Windows)
+
+You need Docker Desktop (running), Python 3.11+, and the backend's packages installed once with `pip install -e ".[dev]"` from `backend\`.
+
+1. Put your settings in `backend\.env` (copy `backend\.env.example`). At least `REPLIC8_GATEWAY_TOKENS`, `NVIDIA_API_KEY` and `REPLIC8_NEMOTRON_MODEL`, plus `REPLIC8_CORS_ORIGINS=https://replic8.work,https://www.replic8.work` for the live site. The file is never committed.
+2. In PowerShell, from the `backend` folder:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\start.ps1
+   ```
+
+3. It loads `.env`, makes an admin token if there is none, checks Docker, rebuilds the sandbox image (a few seconds when nothing changed, several minutes the first time), then shows the **gateway address** (your Tailscale Funnel address) and the **admin token**, copies the admin token to the clipboard, and starts the backend. Wait for `Uvicorn running on http://127.0.0.1:8000`.
+4. Leave the window open. Ctrl+C stops the backend; run the script again to restart it. Your systems and workspaces are kept in `backend\data`.
+
+To make the gateway public, run `tailscale funnel --bg 8000` once. In the dashboard, use **Start a new workspace** with the gateway address and admin token, and save the workspace token it shows. The admin token is printed on screen, so start the backend before you share your screen.
+
+On macOS or Linux, see [backend/README.md](backend/README.md).
+
+### Everything else
+
+- Backend details and API: see [backend/README.md](backend/README.md).
 - Dashboard: see [web/README.md](web/README.md).
 - Demo systems (COBOL and Java): see [legacy/](legacy/README.md).
 

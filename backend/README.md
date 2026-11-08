@@ -65,6 +65,8 @@ It listens on `http://127.0.0.1:8000`, which is what the web dashboard's dev pro
 
 To generate a token: `python -c "import secrets; print(secrets.token_hex(24))"`.
 
+**On Windows, the easy way:** put the settings in `backend\.env` (copy `.env.example`), then from `backend\` run `powershell -ExecutionPolicy Bypass -File .\start.ps1`. It loads `.env`, makes an admin token if there is none, checks Docker, rebuilds the sandbox image (cached), checks the port, shows the Tailscale gateway address and the admin token (and copies the admin token to the clipboard), then starts the backend. Don't run it while screen-sharing.
+
 ### Demo walkthrough (local legacy folders)
 
 ```bash

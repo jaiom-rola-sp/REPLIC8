@@ -101,7 +101,15 @@ class Pipeline:
         except FileNotFoundError:
             raise PipelineError("the sandbox is unavailable (is Docker installed and running?)") from None
         if not result.ok:
-            raise PipelineError("legacy code did not compile in the sandbox")
+            # The compiler's output stays in the backend log: it can quote the repo's code.
+            log.warning("build failed for %s (exit %s, timed out %s): %s", checkout.url, result.exit_code,
+                        result.timed_out, result.stderr_tail[-1500:])
+            if result.exit_code == 125:  # Docker itself could not start the container
+                first = next((l for l in result.stderr_tail.splitlines() if l.strip()), "")
+                raise PipelineError(f"Docker could not start the sandbox: {first.strip()[:200]}")
+            if result.timed_out:
+                raise PipelineError("the build took longer than 3 minutes and was stopped")
+            raise PipelineError("legacy code did not compile in the sandbox (the backend log has the compiler's message)")
 
     def _symbols(self, checkout: Checkout, system: str, mode: str = "auto") -> list[Symbol]:
         """What the model may wrap: functions, command-line programs, or both (mode "auto" takes whatever exists)."""

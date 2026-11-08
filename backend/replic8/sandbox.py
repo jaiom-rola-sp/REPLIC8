@@ -9,11 +9,13 @@ Images must be pinned by digest and are never pulled at call time.
 
 from __future__ import annotations
 
+import io
 import re
 import subprocess
+import tarfile
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .config import PINNED_IMAGE, SandboxLimits
@@ -71,9 +73,13 @@ class SandboxResult:
 def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits: SandboxLimits,
                   build_dir: Path | None = None, writable_build: bool = False) -> list[str]:
     mounts = ["--mount", f"type=bind,source={code_dir},target=/app,readonly"]
-    if build_dir is not None:
-        ro = "" if writable_build else ",readonly"
-        mounts += ["--mount", f"type=bind,source={build_dir},target=/build{ro}"]
+    if writable_build:
+        # Builds write to scratch space inside the container and send the results back on stdout
+        # (see Sandbox.build). Nothing on the host is ever writable from the container. This also
+        # works on Docker Desktop for Windows, where host folders are not writable by the sandbox user.
+        mounts += ["--tmpfs", f"/build:rw,noexec,nosuid,nodev,size={BUILD_SCRATCH},mode=1777"]
+    elif build_dir is not None:
+        mounts += ["--mount", f"type=bind,source={build_dir},target=/build,readonly"]
     return [
         "docker", "run", "--rm", "-i", "--init",
         "--pull", "never",
@@ -98,8 +104,35 @@ def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits
 
 
 # Compiling needs more memory and time than a lookup. Still no network.
+BUILD_SCRATCH = "256m"
 BUILD_LIMITS = SandboxLimits(timeout_s=180.0, memory="1g", cpus="1.0", pids=128,
-                             max_output_bytes=100_000, max_input_bytes=0)
+                             max_output_bytes=128 * 1024 * 1024, max_input_bytes=0)
+BUILD_FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+BUILD_MAX_FILES = 200
+
+
+def unpack_build(archive: bytes, build_dir: Path) -> int:
+    """Write the build's output files (a tar stream from runtime/build.py) into build_dir.
+
+    Only plain files with simple names, directly in the archive's top level: no folders, links,
+    devices, absolute paths or "..". Anything else fails the build. Returns the number of files.
+    """
+    count = 0
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as tar:
+            for member in tar:
+                if not member.isfile() or not BUILD_FILE.match(member.name):
+                    raise SandboxError("the build returned an unexpected file")
+                count += 1
+                if count > BUILD_MAX_FILES:
+                    raise SandboxError("the build returned too many files")
+                data = tar.extractfile(member)
+                target = build_dir / member.name
+                target.write_bytes(data.read() if data else b"")
+                target.chmod(0o755)
+    except tarfile.TarError:
+        raise SandboxError("the build output could not be read (rebuild the sandbox image: docker build -t replic8-legacy-runtime:1 backend/runtime)") from None
+    return count
 
 
 class Sandbox:
@@ -122,11 +155,21 @@ class Sandbox:
         return resolved
 
     def build(self, image: str, code_dir: Path, build_dir: Path, argv: list[str]) -> SandboxResult:
-        """Compile legacy code. Only /build is writable; output goes there."""
+        """Compile legacy code. The container writes only to its own scratch /build and sends the
+        files back as a tar stream on stdout; they are unpacked into build_dir here. Later calls
+        mount build_dir read-only."""
         build_dir.mkdir(parents=True, exist_ok=True)
-        build_dir.chmod(0o777)  # the container runs as nobody (65534)
-        return self.run(image, code_dir, argv, b"", build_dir=build_dir, writable_build=True,
-                        limits=BUILD_LIMITS)
+        build_dir.chmod(0o755)
+        result = self.run(image, code_dir, argv, b"", build_dir=build_dir, writable_build=True,
+                          limits=BUILD_LIMITS)
+        if result.ok:
+            try:
+                unpack_build(result.stdout, build_dir)
+            except SandboxError as exc:
+                for leftover in build_dir.iterdir():
+                    leftover.unlink()
+                return replace(result, exit_code=1, stderr_tail=f"{result.stderr_tail}\n{exc}")
+        return result
 
     def pinned(self, image: str) -> str:
         """The digest-pinned reference to run for `image`.

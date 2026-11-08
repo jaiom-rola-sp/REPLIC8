@@ -182,3 +182,43 @@ def test_executor_end_to_end(box):
 def test_safe_mount_paths(path, ok):
     from replic8.sandbox import SAFE_PATH
     assert bool(SAFE_PATH.match(path)) is ok
+
+
+# ---------- builds: the container never writes to the host ----------
+
+def test_build_command_gives_scratch_space_not_a_host_folder(tmp_path):
+    cmd = build_command("n", IMAGE, tmp_path, ["true"], SandboxLimits(), tmp_path / "out", writable_build=True)
+    joined = " ".join(cmd)
+    assert "target=/build" not in joined  # no bind mount of a host folder at all
+    assert cmd[cmd.index("--tmpfs", cmd.index("--tmpfs") + 1) + 1].startswith("/build:rw,noexec")
+    # A later call mounts the built files read-only.
+    call = " ".join(build_command("n", IMAGE, tmp_path, ["true"], SandboxLimits(), tmp_path / "out"))
+    assert f"source={tmp_path / 'out'},target=/build,readonly" in call
+
+
+def _tar(*members):
+    import tarfile
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tar:
+        for name, kind, data in members:
+            info = tarfile.TarInfo(name)
+            info.type = kind
+            if kind == tarfile.SYMTYPE:
+                info.linkname = "/etc/passwd"
+            info.size = len(data) if kind == tarfile.REGTYPE else 0
+            tar.addfile(info, io.BytesIO(data) if kind == tarfile.REGTYPE else None)
+    return buf.getvalue()
+
+
+def test_build_output_is_unpacked_as_plain_files_only(tmp_path):
+    import tarfile
+    from replic8.sandbox import unpack_build
+    assert unpack_build(_tar(("inventory", tarfile.REGTYPE, b"\x7fELF"), ("app.jar", tarfile.REGTYPE, b"PK")), tmp_path) == 2
+    assert (tmp_path / "inventory").read_bytes() == b"\x7fELF"
+    for bad in (("../escape", tarfile.REGTYPE, b"x"), ("/abs", tarfile.REGTYPE, b"x"), ("dir/file", tarfile.REGTYPE, b"x"),
+                ("link", tarfile.SYMTYPE, b""), ("sub", tarfile.DIRTYPE, b""), (".hidden", tarfile.REGTYPE, b"x")):
+        with pytest.raises(SandboxError):
+            unpack_build(_tar(bad), tmp_path / "other")
+    assert not (tmp_path.parent / "escape").exists()
+    with pytest.raises(SandboxError, match="could not be read"):
+        unpack_build(b"built=1 failed=0\n", tmp_path)  # an old image that prints instead of sending files

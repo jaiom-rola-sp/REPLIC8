@@ -133,5 +133,17 @@ for p in files(".pl", ".pm"):
 for p in files(".php"):
     record(rel(p), run(["php", "-l", str(p)], 30))
 
-print(f"built={len(built)} failed={len(failed)}")
-sys.exit(0 if built and not failed else 1)
+sys.stderr.write(f"built={len(built)} failed={len(failed)}\n")
+if not built or failed:
+    sys.exit(1)
+
+# Send the results back: a tar stream of the files in /build on stdout (the only thing on stdout).
+# The backend unpacks it; the container never writes to the host.
+import tarfile  # noqa: E402
+
+sys.stdout.flush()
+with tarfile.open(fileobj=sys.stdout.buffer, mode="w|") as tar:
+    for path in sorted(out.iterdir()):
+        if path.is_file() and not path.is_symlink():
+            tar.add(str(path), arcname=path.name, recursive=False)
+sys.exit(0)

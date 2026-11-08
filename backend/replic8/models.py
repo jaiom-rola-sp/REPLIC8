@@ -36,7 +36,26 @@ class Access(str, Enum):
     write = "write"
 
 
+def _fix_misplaced_required(node: Any) -> Any:
+    """Repair one common model slip: a "required" list written inside "properties" (where only
+    field schemas belong) instead of beside it. A list is never a valid field schema, so moving it
+    can't change the meaning of a valid schema. Only names that are real properties are kept."""
+    if isinstance(node, list):
+        return [_fix_misplaced_required(n) for n in node]
+    if not isinstance(node, dict):
+        return node
+    node = {k: _fix_misplaced_required(v) for k, v in node.items()}
+    props = node.get("properties")
+    if isinstance(props, dict) and isinstance(props.get("required"), list):
+        misplaced = props.pop("required")
+        if all(isinstance(n, str) for n in misplaced):
+            existing = node.get("required") if isinstance(node.get("required"), list) else []
+            node["required"] = list(dict.fromkeys([*existing, *(n for n in misplaced if n in props)]))
+    return node
+
+
 def _check_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    schema = _fix_misplaced_required(schema)
     try:
         Draft202012Validator.check_schema(schema)
     except SchemaError as exc:

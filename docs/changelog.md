@@ -2,6 +2,18 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Builds work on Windows; Fortran repo imports; start script
+
+- **Who:** Claude (for Aryan)
+- **What changed:**
+  - **Builds on Windows:** importing `jaiom-rola-sp/legacy-c-inventory-fortran` failed on Aryan's Windows PC with "legacy code did not compile in the sandbox", while the same build works on Linux. Probable cause: Docker Desktop shows Windows folders as owned by root inside the container, so the sandbox user could not write the compiled program into `data\builds`. Builds now compile into the container's own scratch space (`--tmpfs /build`) and send the files back as a tar stream on stdout; the backend unpacks only plain, simply named files (`sandbox.unpack_build`). The container never gets a writable host folder. `runtime/build.py` prints its summary to stderr. **The sandbox image must be rebuilt.**
+  - **Why a build failed:** the backend log now has the compiler's message; the dashboard says when Docker itself could not start the sandbox, or the build timed out.
+  - **Schema slip:** the model sometimes writes `required` inside `properties`. It is now moved beside it before the schema is checked (only names that are real fields are kept); other mistakes are still rejected. This had stopped `get_shipping_options` from publishing.
+  - **Start script:** new `backend/start.ps1` loads `backend\.env` (any `NAME=value` line), makes and saves an admin token if there is none, checks Docker, rebuilds the sandbox image (cached), ignores a stale `REPLIC8_SANDBOX_IMAGES`, checks the port, shows the Tailscale address and admin token, copies the token, and starts the backend. `readme.md` has a "Start the backend (Windows)" section; `backend/README.md` mentions it.
+- **Requirement(s):** FR-4, FR-1, FR-11, FR-16
+- **Validation:** 273 backend tests pass (6 new: the build command has no host folder, unpacking rejects links, folders, absolute and `..` paths, and an old image's output; schema repair moves `required`, keeps valid schemas, still rejects bad ones). Live run with Nemotron: the Fortran repo imported from GitHub into a workspace and published `check_stock` and `get_shipping_options`; PMP-2210 returned 12 on hand in Houston and two lanes to Permian. Not tested here: Windows itself and `start.ps1` (no PowerShell in this container).
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: One homepage logo throughout the site
 
 - **Who:** Codex (for Jaiom)
@@ -16,7 +28,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** While a workspace is open, its dialog shows the workspace token (hidden until **Show**) with **Copy**. **Leave workspace** first shows the token in full and asks you to save it, with **Stay in this workspace** to go back. The gateway address field starts with `VITE_REPLIC8_GATEWAY` when the site is built with it (set it in Vercel), otherwise `/gateway`. New `web/.env.example`; `deploy/README.md` says where to set it. The admin token is never shown or stored.
 - **Requirement(s):** WEB-14, FR-16
 - **Validation:** 42 web tests pass (1 new) and the site builds. Browser run against the real backend: the address was filled in from the build setting, the token was masked, then shown and copied correctly, leaving asked to save it first and then went blank.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `a3e1444`
 
 ## 2026-11-08: Workspaces: start blank, leave, come back with a token
 
