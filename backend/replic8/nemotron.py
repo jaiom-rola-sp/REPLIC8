@@ -38,6 +38,15 @@ class ModelError(Exception):
     """Safe to show: never contains the API key, the prompt, or the raw response."""
 
 
+def _max_tokens(text: str) -> int:
+    """REPLIC8_NEMOTRON_MAX_TOKENS: how long the model's answer may be (default 16384, 1024 to 65536)."""
+    if not text.strip():
+        return 16384
+    if not text.strip().isdigit() or not 1024 <= int(text) <= 65536:
+        raise ModelError("REPLIC8_NEMOTRON_MAX_TOKENS must be a whole number from 1024 to 65536")
+    return int(text)
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     api_key: str
@@ -46,7 +55,7 @@ class ModelConfig:
     structured: bool = True
     thinking: bool = False
     timeout_s: float = 120.0
-    max_tokens: int = 16384  # 4096 cut off the proposal for systems with ~9 operations
+    max_tokens: int = 16384  # 4,096 cut off proposals for systems with 8 or 9 operations
     max_retries: int = 3
 
     @classmethod
@@ -63,6 +72,7 @@ class ModelConfig:
             base_url=os.environ.get("REPLIC8_NEMOTRON_BASE_URL", DEFAULT_BASE_URL).rstrip("/"),
             structured=os.environ.get("REPLIC8_NEMOTRON_STRUCTURED", "1") == "1",
             thinking=os.environ.get("REPLIC8_NEMOTRON_THINKING", "0") == "1",
+            max_tokens=_max_tokens(os.environ.get("REPLIC8_NEMOTRON_MAX_TOKENS", "")),
         )
         config.validate()
         return config

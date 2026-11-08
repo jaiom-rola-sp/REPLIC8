@@ -119,6 +119,19 @@ def test_from_env_requires_key_and_model(monkeypatch):
         ModelConfig.from_env()
 
 
+def test_answer_length_is_long_enough_and_configurable(monkeypatch):
+    monkeypatch.setenv("NVIDIA_API_KEY", KEY)
+    monkeypatch.setenv("REPLIC8_NEMOTRON_MODEL", "m")
+    monkeypatch.delenv("REPLIC8_NEMOTRON_MAX_TOKENS", raising=False)
+    assert ModelConfig.from_env().max_tokens == 16384  # 4096 cut off a real 8-operation proposal
+    monkeypatch.setenv("REPLIC8_NEMOTRON_MAX_TOKENS", "32000")
+    assert ModelConfig.from_env().max_tokens == 32000
+    for bad in ("12", "lots", "999999"):
+        monkeypatch.setenv("REPLIC8_NEMOTRON_MAX_TOKENS", bad)
+        with pytest.raises(ModelError, match="MAX_TOKENS"):
+            ModelConfig.from_env()
+
+
 @pytest.mark.parametrize("content,expected", [
     ('{"a": 1}', '{"a": 1}'),
     ('<think>let me reason</think>\n{"a": 1}', '{"a": 1}'),

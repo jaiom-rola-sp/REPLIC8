@@ -2,6 +2,18 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Import fixes found with two new demo repos (COBOL inventory, old-Java crew roster)
+
+- **Who:** Claude (for Aryan)
+- **What changed:**
+  - **New demo repos (outside this repo):** [AryanManda/legacy-crew-roster-java](https://github.com/AryanManda/legacy-crew-roster-java) (field crew roster, J2SE 1.4 Java, 8 operations) and `legacy-inventory-cobol` (parts inventory and logistics, GnuCOBOL, 8 operations including a delivery estimate). Both share part IDs, regions, wells and request IDs with the maintenance system, so the graph links all three. Each README lists the known-good values for importing.
+  - **Answer length:** the model's answer limit was 4,096 tokens, which cut off the crew roster's 8-operation proposal ("model answer was cut off"). The default is now 16,384, and `REPLIC8_NEMOTRON_MAX_TOKENS` (1024 to 65536) changes it.
+  - **Guard:** a command-line (`cli`) form the model adds to a function is now ignored instead of rejecting the operation (REPLIC8 builds function calls itself). Seen live: the model added one to every operation, so nothing was published.
+  - **Import errors:** when an import publishes nothing, the dashboard says why ("nothing was published: 2 x write operation...") and the log lists every operation's reason. When the model service fails (down, or an answer cut off), the dashboard says so ("the model service did not answer (...); try again in a minute") instead of "unexpected error, see the gateway log". Repairs report it as a failed repair.
+- **Requirement(s):** FR-1, FR-11, FR-13, FR-10
+- **Validation:** 3 new tests (`cli` form ignored, why nothing was published, model outage message) and one for the answer length setting. Live with Nemotron: maintenance, inventory and crew roster imported into one workspace published 2, 8 and 8 operations; over MCP an agent's chain worked (request R-1001, its crew job, a delivery quote, a job cost); `/v1/graph` linked crew to maintenance (`request_id`, `well_id`) and both to inventory (`part_id`). The crew roster also imported from its GitHub repo and published 8 operations. 278 backend tests and 42 web tests pass.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Reverted the legacy-expand merge
 
 - **Who:** Claude (for Krish)
@@ -16,7 +28,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** On Aryan's Windows PC every build failed with "No such image: replic8-legacy-runtime:1@sha256:...". The backend pins the sandbox image as `name@<image id>`; Docker's classic image store (common on Docker Desktop for Windows) only resolves `name@<digest>` for registry digests, so a locally built image is "not found" that way. `Sandbox.runnable` now checks once which form Docker accepts and, if only the bare image ID works, runs that. It names exactly the same content, so the pin is unchanged. This was most likely the cause of the earlier "legacy code did not compile in the sandbox" too; the clearer build error from `a1cd209` is what showed it.
 - **Requirement(s):** FR-4, FR-1
 - **Validation:** Reproduced here by running Docker with the classic store: `name@<id>` gave the same "No such image" error, the bare ID ran. With the fix: 268 backend tests pass on the classic store (6 skipped for a missing `alpine` image) and 274 on the containerd store, including a new test. A real import of `legacy-c-inventory-fortran` from GitHub on the classic store published `check_stock` and `get_shipping_options` and returned two lanes to Permian.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `6b83909`
 
 ## 2026-11-08: Builds work on Windows; Fortran repo imports; start script
 

@@ -227,3 +227,35 @@ def test_onboarding_errors_are_safe(world):
             p.onboard("maintenance", url)
     with pytest.raises(PipelineError):
         p.onboard("Bad Name", "local://b-maint")
+
+
+def test_an_import_that_publishes_nothing_says_why(world, monkeypatch):
+    p = world["pipeline"]
+    model = p.model
+    scripted = model.complete_json
+
+    def everything_is_a_write(system, user, schema=None):
+        data = json.loads(scripted(system, user, schema))
+        for op in data["operations"]:
+            op["access"] = "write"
+        return json.dumps(data)
+
+    monkeypatch.setattr(model, "complete_json", everything_is_a_write)
+    with pytest.raises(PipelineError) as err:
+        p.onboard("maintenance", "local://b-maint")
+    assert str(err.value).startswith("nothing was published: 2 x write operation")
+
+
+def test_a_model_outage_is_reported_plainly(world, monkeypatch):
+    from replic8.nemotron import ModelError
+    p = world["pipeline"]
+
+    def down(system, user, schema=None):
+        raise ModelError("model API returned 502 after 4 attempts")
+
+    monkeypatch.setattr(p.model, "complete_json", down)
+    with pytest.raises(PipelineError, match="model service did not answer"):
+        p.onboard("maintenance", "local://b-maint")
+    failed = [e for e in p.events.since(0, 500) if e["kind"] == "onboard_failed"][-1]
+    assert failed["detail"].startswith("the model service did not answer (model API returned 502")
+    assert "try again" in failed["detail"]

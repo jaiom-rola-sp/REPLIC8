@@ -146,5 +146,6 @@ pytest -q
 | `REPLIC8_NEMOTRON_BASE_URL` | Default `https://integrate.api.nvidia.com/v1` |
 | `REPLIC8_NEMOTRON_STRUCTURED` | Default `1`: constrain output with `response_format` (NVIDIA rejects `nvext.guided_json`) |
 | `REPLIC8_NEMOTRON_THINKING` | Default `0`. Thinking mode used ~3,700 tokens and cut answers off in testing |
+| `REPLIC8_NEMOTRON_MAX_TOKENS` | Default `16384` (1024 to 65536): how long the model's answer may be. 4,096 cut off a real 8-operation proposal ("model answer was cut off") |
 
 Never commit these values.

@@ -92,3 +92,14 @@ def test_decide_access(name, claimed, expected):
 def test_rejects_malformed_or_extra_fields(repo, raw):
     with pytest.raises(ValueError):
         validate_proposal(raw, namespace="maintenance", tier=Tier.inferred, repo_root=repo, image=IMAGE, argv_for=argv_for)
+
+
+def test_a_command_line_form_on_a_function_is_ignored_not_fatal(repo):
+    # Seen live: for line-protocol programs the model sometimes adds a "cli" form to every function.
+    # REPLIC8 builds function calls itself, so the form is dropped and the operation kept as parsed.
+    cli = {"args": ["{id}"], "output": "keyvalue"}
+    ok, bad = validate_proposal(proposal(cli=cli), namespace="maintenance", tier=Tier.parsed,
+                                repo_root=repo, image=IMAGE, argv_for=argv_for, symbols=SYMBOLS)
+    assert bad == {} and [o.tool for o in ok] == ["maintenance.get_request"]
+    assert ok[0].tier is Tier.parsed
+    assert ok[0].invocation.argv == ["python", "/replic8/shim.py", "src/maint.py", "get_request"]

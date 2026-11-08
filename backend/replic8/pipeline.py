@@ -12,6 +12,7 @@ section 7). Progress is reported through the event log, which the dashboard read
 from __future__ import annotations
 
 import json
+from collections import Counter
 import logging
 import threading
 import time
@@ -29,6 +30,7 @@ from .extract import extract_symbols, language_of, program_symbols
 from .generate import JsonModel, heal as model_heal, propose
 from .guard import Symbol
 from .ingest import Checkout, IngestError
+from .nemotron import ModelError
 from .models import MODES, NAME, Access, ContractCase, ContractTestResult, Operation, Tier, WrapperVersion
 from .prompts import source_diff
 from .registry import Registry, RegistryError
@@ -179,6 +181,10 @@ class Pipeline:
             except (PipelineError, RegistryError) as exc:
                 self.events.add("onboard_failed", system=system, detail=str(exc))
                 raise PipelineError(str(exc)) from exc
+            except ModelError as exc:  # the model service is down or busy; nothing is wrong with the repo
+                detail = f"the model service did not answer ({exc}); try again in a minute"[:300]
+                self.events.add("onboard_failed", system=system, detail=detail)
+                raise PipelineError(detail) from exc
             except Exception as exc:  # noqa: BLE001 - the dashboard must never wait on a silent failure
                 log.exception("onboarding %s hit an unexpected error", system)
                 self.events.add("onboard_failed", system=system, detail="unexpected error, see the gateway log")
@@ -236,8 +242,11 @@ class Pipeline:
             if not run.result.passed:
                 self.events.add("contract_failed", system=system, tool=op.tool, detail=run.result.detail)
         stage("publish")
-        return self.registry.publish(system, checkout.url, checkout.commit, candidates, tests, cases,
-                                     rejected=rejected, reason="onboarded", mode=mode)
+        try:
+            return self.registry.publish(system, checkout.url, checkout.commit, candidates, tests, cases,
+                                         rejected=rejected, reason="onboarded", mode=mode)
+        except RegistryError:
+            raise PipelineError(_nothing_published(rejected, tests)) from None
 
     # ---------- self-heal ----------
 
@@ -288,7 +297,7 @@ class Pipeline:
             return HealOutcome("skipped", None, "a repair is already running")
         try:
             return self._heal(system, current, reason)
-        except (PipelineError, RegistryError) as exc:
+        except (PipelineError, RegistryError, ModelError) as exc:
             self.events.add("heal_failed", system=system, version=current.version, detail=str(exc))
             return HealOutcome("failed", None, str(exc))
         finally:
@@ -395,6 +404,18 @@ def _usable_known_inputs(op: Operation, known: dict[str, list[str]]) -> list[dic
 
 
 LOOSENABLE = ("pattern", "maxLength", "minLength", "enum", "format", "const")
+
+
+def _nothing_published(rejected: dict[str, str], tests: dict[str, ContractTestResult]) -> str:
+    """Why an import published nothing, short enough for the dashboard. The full list goes to the log."""
+    reasons = list(rejected.values()) + [f"contract test failed: {t.detail}" for t in tests.values() if not t.passed]
+    log.warning("nothing published; reasons by operation: %s",
+                {**rejected, **{k: t.detail for k, t in tests.items() if not t.passed}})
+    if not reasons:
+        return "the model proposed no operations for this code"
+    counted = sorted(Counter(r[:90] for r in reasons).items(), key=lambda kv: -kv[1])
+    summary = "; ".join(f"{n} x {reason}" if n > 1 else reason for reason, n in counted[:3])
+    return f"nothing was published: {summary}"[:300]
 
 
 def fit_input_schema(schema: dict[str, Any], examples: list[dict[str, Any]]) -> dict[str, Any] | None:

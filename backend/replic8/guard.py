@@ -230,6 +230,11 @@ def validate_proposal(
             continue
         symbol = by_key.get((item["symbol"], item["file"], item["line"]))
         cli = item.get("cli")
+        if symbol is not None and not symbol.program and cli is not None:
+            # A function is called through its runtime (the line protocol or the Python caller), which
+            # REPLIC8 builds itself. A command-line form the model added for one is unused, so drop it
+            # instead of losing the operation. A program without a form is still rejected below.
+            cli = None
         if taken[cli is not None] >= share:
             rejected[label] = "over this kind's share of the operation limit"
             continue
