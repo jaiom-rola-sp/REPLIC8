@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: More languages, step 5: how a repo is read (functions, programs or both)
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** `POST /v1/admin/systems` takes an optional `mode`: `auto` (default; wraps functions and command-line programs, whatever the repo has), `functions` or `programs`. The mode is saved on each version, so a repair reads the repo the same way (older versions load as `auto`). A new `mode_detected` event says what was found (for example "1 functions, 1 programs: reading as functions and programs") and shows in the activity feed. When a repo has both kinds, each gets half of the 20-operation limit. A mode with nothing to wrap says what the repo does have. Add system has a "How to read this repo" dropdown.
+- **Requirement(s):** FR-14
+- **Validation:** 252 backend tests pass (6 skipped) and 35 web tests pass: what the model is shown follows the mode, the error hints, old versions load, the shared limit. Restart the backend to use it.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: More languages, step 4: the command-line wrapper
 
 - **Who:** Claude (for Jaiom)
@@ -9,7 +17,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Requirement(s):** FR-14, FR-11
 - **Validation:** 246 backend tests pass (6 skipped): 19 new covering program finding, the guard on forms (shell syntax, flags, unknown or doubled slots, unbounded strings), the harness in the real sandbox for Perl, PHP, C and Pascal (values cannot become flags or syntax, missing program exits 3), and onboarding to a REST call. Live run with Nemotron on a Perl script: published `stock.lookup` as black-box and answered with and without the optional field. Rebuild the image and restart the backend to use it.
 - **Open:** a value starting with `-` (including negative numbers) is refused with a 422 (harness exit code 4). Krish should review `guard.cli_problem` and `runtime/call_cli.py` (security.md T33) before this ships. Function-or-program choice per repo is still to do.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `12372a5`
 
 ## 2026-11-07: More languages, step 3: the Python function caller
 

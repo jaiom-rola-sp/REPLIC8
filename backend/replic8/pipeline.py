@@ -29,7 +29,7 @@ from .extract import extract_symbols, language_of, program_symbols
 from .generate import JsonModel, heal as model_heal, propose
 from .guard import Symbol
 from .ingest import Checkout, IngestError
-from .models import NAME, Access, ContractCase, ContractTestResult, Operation, Tier, WrapperVersion
+from .models import MODES, NAME, Access, ContractCase, ContractTestResult, Operation, Tier, WrapperVersion
 from .prompts import source_diff
 from .registry import Registry, RegistryError
 from .runtimes import RUNTIMES, argv_for, callable_symbols, cli_exe
@@ -103,13 +103,26 @@ class Pipeline:
         if not result.ok:
             raise PipelineError("legacy code did not compile in the sandbox")
 
-    def _symbols(self, checkout: Checkout) -> list[Symbol]:
+    def _symbols(self, checkout: Checkout, system: str, mode: str = "auto") -> list[Symbol]:
+        """What the model may wrap: functions, command-line programs, or both (mode "auto" takes whatever exists)."""
         symbols, partial = extract_symbols(checkout.path)
         if partial:
             log.info("partly parsed files: %s", ", ".join(partial[:10]))
-        found = callable_symbols(checkout.path, symbols) + self._programs(checkout)
+        funcs = callable_symbols(checkout.path, symbols) if mode != "programs" else []
+        progs = self._programs(checkout) if mode != "functions" else []
+        found = funcs + progs
         if not found:
-            raise PipelineError("no callable functions or command-line programs found in the legacy code")
+            hint = ""
+            if mode == "functions" and program_symbols(checkout.path):
+                hint = " (it has command-line programs; change the mode)"
+            if mode == "programs" and callable_symbols(checkout.path, symbols):
+                hint = " (it has functions; change the mode)"
+            what = {"functions": "callable functions", "programs": "command-line programs"}.get(
+                mode, "callable functions or command-line programs")
+            raise PipelineError(f"no {what} found in the legacy code{hint}")
+        read_as = "functions and programs" if funcs and progs else "functions" if funcs else "programs"
+        self.events.add("mode_detected", system=system, detail=f"{len(funcs)} functions, {len(progs)} programs: reading as {read_as}"
+                        + (f" (mode: {mode})" if mode != "auto" else ""))
         return found
 
     def _programs(self, checkout: Checkout) -> list[Symbol]:
@@ -139,10 +152,12 @@ class Pipeline:
 
     def onboard(self, system: str, repo_url: str,
                 examples: dict[str, list[dict[str, Any]]] | None = None,
-                known_values: dict[str, list[str]] | None = None) -> WrapperVersion:
+                known_values: dict[str, list[str]] | None = None, mode: str = "auto") -> WrapperVersion:
         """Turn a legacy repo into published, tested operations under namespace `system`."""
         if not NAME.match(system):
             raise PipelineError("system name must match ^[a-z][a-z0-9_]{0,31}$")
+        if mode not in MODES:
+            raise PipelineError("mode must be auto, functions or programs")
         try:
             canonical_url(repo_url, self.settings.local_repo_root)
         except IngestError as exc:
@@ -152,7 +167,7 @@ class Pipeline:
         try:
             self.events.add("onboard_started", system=system)
             try:
-                version = self._onboard(system, repo_url, examples or {}, known_values or {})
+                version = self._onboard(system, repo_url, examples or {}, known_values or {}, mode)
             except (PipelineError, RegistryError) as exc:
                 self.events.add("onboard_failed", system=system, detail=str(exc))
                 raise PipelineError(str(exc)) from exc
@@ -168,7 +183,7 @@ class Pipeline:
             self._lock(system).release()
 
     def _onboard(self, system: str, repo_url: str, examples: dict[str, list[dict[str, Any]]],
-                 known_values: dict[str, list[str]]) -> WrapperVersion:
+                 known_values: dict[str, list[str]], mode: str) -> WrapperVersion:
         def stage(name: str) -> None:  # the dashboard shows where an import is, or stopped
             self.events.add("onboard_stage", system=system, detail=name)
 
@@ -179,7 +194,7 @@ class Pipeline:
         stage("build")
         self._build(checkout, runtime)
         stage("extract")
-        symbols = self._symbols(checkout)
+        symbols = self._symbols(checkout, system, mode)
         stage("propose")
         gen = propose(self._model(), namespace=system, tier=Tier.parsed, repo_root=checkout.path,
                       image=runtime.image, argv_for=argv_for, symbols=symbols)
@@ -214,7 +229,7 @@ class Pipeline:
                 self.events.add("contract_failed", system=system, tool=op.tool, detail=run.result.detail)
         stage("publish")
         return self.registry.publish(system, checkout.url, checkout.commit, candidates, tests, cases,
-                                     rejected=rejected, reason="onboarded")
+                                     rejected=rejected, reason="onboarded", mode=mode)
 
     # ---------- self-heal ----------
 
@@ -281,7 +296,7 @@ class Pipeline:
 
         runtime = self._runtime(checkout)
         self._build(checkout, runtime)
-        symbols = self._symbols(checkout)
+        symbols = self._symbols(checkout, system, current.mode)
         by_name = {s.name: s for s in symbols}
 
         # 1. Replay every recorded contract against the new code, unchanged.
@@ -333,7 +348,7 @@ class Pipeline:
             return HealOutcome("failed", None, detail)
         label = f"self-heal ({reason})" if broken else "code changed; contracts still pass"
         version = self.registry.publish(system, checkout.url, checkout.commit, list(kept.values()),
-                                        tests, cases, rejected=rejected, reason=label)
+                                        tests, cases, rejected=rejected, reason=label, mode=current.mode)
         self.events.add("heal_saved", system=system, version=version.version,
                         operations=len(version.operations), rejected=len(version.rejected),
                         repaired=len(broken) - len(rejected))

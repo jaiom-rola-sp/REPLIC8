@@ -48,3 +48,9 @@ test('version reasons read as plain words', () => {
   assert.equal(reasonLabel('self-heal (manual)'), 'Repaired on request');
   assert.equal(reasonLabel('something else'), 'something else');
 });
+
+test('mode_detected shows how a repo was read', () => {
+  const d = describeEvent(ev(1, 'mode_detected', { system: 'stock', detail: '0 functions, 1 programs: reading as programs' }));
+  assert.equal(d.title, 'Read stock');
+  assert.match(d.detail, /reading as programs/);
+});

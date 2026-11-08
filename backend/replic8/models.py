@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Literal
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -19,6 +19,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 OP_NAME = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 COMMIT = re.compile(r"^[0-9a-f]{40}$")
+
+
+# How a repo is read: wrap its functions, its command-line programs, or whatever it has.
+MODES = ("auto", "functions", "programs")
 
 
 class Tier(str, Enum):
@@ -151,6 +155,7 @@ class WrapperVersion(BaseModel):
     rejected: dict[str, str] = Field(default_factory=dict)
     parent_version: int | None = None
     reason: str = Field(default="onboarded", max_length=100)
+    mode: Literal["auto", "functions", "programs"] = "auto"
 
     @field_validator("system")
     @classmethod

@@ -35,7 +35,7 @@ import contextlib
 import logging
 import re
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -73,6 +73,8 @@ class OnboardRequest(BaseModel):
     # Known-good values by input field name, e.g. {"request_id": ["R-1001"]}. They become contract-test
     # inputs that hit real records. Limits match what the call shim accepts.
     known_values: dict[str, list[str]] = Field(default_factory=dict, max_length=20)
+    # Wrap functions, command-line programs, or whatever the repo has.
+    mode: Literal["auto", "functions", "programs"] = "auto"
 
     @field_validator("known_values")
     @classmethod
@@ -357,7 +359,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
 
         def work():
             try:
-                p.onboard(body.system, body.repo_url, body.examples, body.known_values)
+                p.onboard(body.system, body.repo_url, body.examples, body.known_values, body.mode)
             except Exception as exc:  # noqa: BLE001 - reported through events
                 log.info("onboarding %s failed: %s", body.system, type(exc).__name__)
 

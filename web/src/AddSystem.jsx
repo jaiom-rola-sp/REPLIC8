@@ -39,6 +39,7 @@ export default function AddSystem({ base, token, adminToken, setAdminToken, live
   const [url, setUrl] = useState('');
   const [admin, setAdmin] = useState(adminToken);
   const [known, setKnown] = useState('');
+  const [mode, setMode] = useState('auto');
   const [specPath, setSpecPath] = useState('');
   const [parent, setParent] = useState(false);
   const [error, setError] = useState('');
@@ -84,7 +85,7 @@ export default function AddSystem({ base, token, adminToken, setAdminToken, live
       const afterId = before.reduce((max, ev) => Math.max(max, ev.id), 0);
       const body = established
         ? { system, repo_url: repo.url, parent, ...(spec.path ? { spec_path: spec.path } : {}) }
-        : { system, repo_url: repo.url, ...(Object.keys(values.values).length ? { known_values: values.values } : {}) };
+        : { system, repo_url: repo.url, ...(mode !== 'auto' ? { mode } : {}), ...(Object.keys(values.values).length ? { known_values: values.values } : {}) };
       const res = await fetch(`${base}${established ? '/v1/admin/established' : '/v1/admin/systems'}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' },
@@ -143,6 +144,13 @@ export default function AddSystem({ base, token, adminToken, setAdminToken, live
       {tab === 'legacy' && <>
         <label>Known-good values <span>optional</span><textarea value={known} onChange={(e) => { setKnown(e.target.value); setError(''); }} rows={3} spellCheck={false} placeholder={'request_id=R-1001\nwell_id=W-17'} /></label>
         <p className="dash-field-hint">Real IDs from the system's own data, one <code>field=value</code> per line. The contract tests use them to check real records. Without them, the model invents IDs that usually come back as "not found".</p>
+        <label>How to read this repo <span>optional</span>
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="auto">Automatic (functions and command-line programs)</option>
+            <option value="functions">Functions only</option>
+            <option value="programs">Command-line programs only</option>
+          </select>
+        </label>
       </>}
       {tab === 'established' && <>
         <label>API file path <span>optional</span><input value={specPath} onChange={(e) => { setSpecPath(e.target.value); setError(''); }} placeholder="docs/openapi.yaml" maxLength={200} spellCheck={false} autoComplete="off" /></label>
