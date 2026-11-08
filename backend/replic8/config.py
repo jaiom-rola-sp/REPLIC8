@@ -10,6 +10,9 @@ from pathlib import Path
 MIN_TOKEN_LENGTH = 32
 E164 = re.compile(r"^\+[1-9]\d{6,14}$")
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,63}$")
+# A sandbox image must be pinned by digest (name[:tag]@sha256:<64 hex>). A tag alone can be
+# moved to point at a different image; a digest can't.
+PINNED_IMAGE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,127}(:[A-Za-z0-9._-]{1,128})?@sha256:[0-9a-f]{64}$")
 
 
 class ConfigError(ValueError):
@@ -36,7 +39,7 @@ class Settings:
     gateway_tokens: frozenset[str] = frozenset()
     # Write operations stay disabled unless named here (FR-13). Empty in v1.
     write_allowlist: frozenset[str] = frozenset()
-    # Docker images the sandbox may run. Pin by digest in real deployments.
+    # Docker images the sandbox may run. Each must be pinned by digest (see PINNED_IMAGE).
     sandbox_images: frozenset[str] = frozenset()
     sandbox: SandboxLimits = field(default_factory=SandboxLimits)
     max_repo_bytes: int = 200 * 1024 * 1024
@@ -64,6 +67,9 @@ class Settings:
         for tool in self.write_allowlist:
             if not TOOL_NAME.match(tool):
                 raise ConfigError(f"invalid tool name in REPLIC8_WRITE_OPS: {tool!r}")
+        for image in self.sandbox_images:
+            if not PINNED_IMAGE.match(image):
+                raise ConfigError(f"REPLIC8_SANDBOX_IMAGES must be pinned by digest (name@sha256:...): {image!r}")
         for number in self.notify_numbers:
             if not E164.match(number):
                 raise ConfigError("REPLIC8_NOTIFY_NUMBERS must be E.164 numbers like +15551234567")

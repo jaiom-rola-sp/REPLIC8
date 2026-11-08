@@ -35,7 +35,7 @@ pytest -q
 | `REPLIC8_DATA_DIR` | Where clones and the registry live (default `./data`, git-ignored) |
 | `REPLIC8_GATEWAY_TOKENS` | Comma-separated bearer tokens, at least 32 characters each. Required. |
 | `REPLIC8_WRITE_OPS` | Write tools to allow, e.g. `inventory.reserve_part`. Leave empty in v1. |
-| `REPLIC8_SANDBOX_IMAGES` | Docker images the sandbox may run. Pin by digest. |
+| `REPLIC8_SANDBOX_IMAGES` | Docker images the sandbox may run. Each must be pinned by digest (`name@sha256:...`) or startup fails. Images are never pulled at call time, so `docker pull` them first. |
 | `REPLIC8_NOTIFY_NUMBERS` | E.164 numbers that get status texts |
 | `NVIDIA_API_KEY` | Nemotron API key. Required for generation and healing. |
 | `REPLIC8_NEMOTRON_MODEL` | Exact model id, currently `nvidia/nemotron-3.5-super-vl-120b-a12b`. Required. |

@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Harden sandbox and notifier
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Sandbox: images must be pinned by digest (checked at startup and in `Sandbox`), `docker run --pull never`, and a stuck docker client after a timeout kill no longer raises. Notifier: the transport gets `timeout_s` on every send, the queue is capped (`max_queue`, extras dropped and logged), and `flush()` has a timeout. PRD section 7 now says each call gets a fresh container and that timeouts and crashes are result fields. Added 6 tests.
+- **Requirement(s):** FR-4, FR-12
+- **Commit:** this commit
+
 ## 2026-11-07: CLAUDE.md rule uses Sandbox.run
 
 - **Who:** Krish Thapa (with Claude)

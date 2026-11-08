@@ -4,6 +4,7 @@ Legacy code is untrusted. Each call gets a fresh container with:
 no network, read-only root filesystem, all capabilities dropped, no privilege
 escalation, a non-root user, CPU/memory/PID limits, a wall-clock timeout,
 and a cap on output size. Caller input goes in on stdin as JSON, never as argv.
+Images must be pinned by digest and are never pulled at call time.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import SandboxLimits
+from .config import PINNED_IMAGE, SandboxLimits
 
 SAFE_PATH = re.compile(r"^[A-Za-z0-9_./-]+$")
 STDERR_KEEP = 4096
@@ -41,6 +42,7 @@ class SandboxResult:
 def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits: SandboxLimits) -> list[str]:
     return [
         "docker", "run", "--rm", "-i", "--init",
+        "--pull", "never",
         "--name", name,
         "--network", "none",
         "--read-only",
@@ -63,6 +65,9 @@ def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits
 
 class Sandbox:
     def __init__(self, repos_root: Path, allowed_images: frozenset[str], limits: SandboxLimits):
+        unpinned = sorted(i for i in allowed_images if not PINNED_IMAGE.match(i))
+        if unpinned:
+            raise SandboxError(f"sandbox images must be pinned by digest: {unpinned}")
         self.repos_root = repos_root.resolve()
         self.allowed_images = allowed_images
         self.limits = limits
@@ -126,7 +131,10 @@ class Sandbox:
         except subprocess.TimeoutExpired:
             timed_out = True
             _kill(name, proc)
-            proc.wait(timeout=10)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass  # docker client is stuck even after kill; report exit_code=None, timed_out=True
         for t in threads:
             t.join(timeout=5)
 
