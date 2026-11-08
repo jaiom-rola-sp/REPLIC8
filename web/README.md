@@ -70,6 +70,10 @@ Only public repositories can be imported. The **Established system** and **Exten
 
 Direct HTTP(S) gateway addresses require the backend to allow the browser’s origin. A production deployment needs a same-origin gateway proxy or deliberate CORS configuration; Vite’s development proxy is not part of `dist/`.
 
+## Troubleshooting
+
+- **`403 Restricted ... outside of Vite serving allow list` on Windows:** the project folder's path contains an unusual character (for example a folder literally named `~`, created when a Mac/Linux `git clone ... ~/...` command is run in PowerShell). Move the project to a plain path such as `C:\Users\<you>\Development\REPLIC8`, or run `npm run build` and then `npm run preview` (http://127.0.0.1:4173) instead of `npm run dev`.
+
 ## Review checks
 
 Build with `npm run build`. Browser review covers the landing’s scroll chapters, motion preference, desktop/mobile layouts, dashboard navigation, graph inspection, operation filtering, repository-draft form, and simulated trace. Review screenshots can be regenerated under the git-ignored `web/review/` directory.

@@ -18,9 +18,9 @@ from pathlib import Path
 
 from .config import PINNED_IMAGE, SandboxLimits
 
-# Linux/macOS paths, or Windows paths like C:\\Users\\aryan\\data. No commas, quotes or
-# spaces, which could break the --mount spec.
-SAFE_PATH = re.compile(r"^(?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\-]+$")
+# Linux/macOS paths, or Windows paths like C:\\Users\\aryan\\data (a literal "~" folder is
+# allowed too). No commas, quotes or spaces, which could break the --mount spec.
+SAFE_PATH = re.compile(r"^(?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\~-]+$")
 STDERR_KEEP = 4096
 
 

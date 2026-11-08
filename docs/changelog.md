@@ -5,9 +5,15 @@ Log every meaningful change to the project. Newest entries go at the top.
 ## 2026-11-07: Hosting is Azure only
 
 - **Who:** Claude (for Jaiom)
-- **What changed:** PRD section 8 (hosting row), the cloud-provider open question and the risks line now say Azure only (Azure for Students VM for the backend, Vercel for the frontend, laptop plus tunnel as the fallback), replacing the Vultr choice and the Vultr, DigitalOcean and AWS alternatives. Requirements: new decision, and the two Vultr decisions are marked superseded. `docs/architecture.md` updated. Left alone: `deploy/` (the folder is still named `vultr` but the script is generic Ubuntu 24.04, untested on Azure) and the hosting line in `docs/security.md` (T31), which belong to teammates.
+- **What changed:** PRD section 8 (hosting row), the cloud-provider open question and the risks line now say Azure only (Azure for Students VM for the backend, Vercel for the frontend, laptop plus tunnel as the fallback), replacing the Vultr choice and the Vultr, DigitalOcean and AWS alternatives. Requirements: new decision, and the two Vultr decisions are marked superseded. `docs/architecture.md` updated. Left alone: `deploy/` (the folder was still named `vultr` then; Aryan has since renamed it `deploy/vm`) and the hosting line in `docs/security.md` (T31), which belong to teammates.
 - **Requirement(s):** none
 - **Commit:** not committed yet (awaiting approval)
+## 2026-11-08: Azure hosting guide, deploy/vm, and Windows path fixes
+
+- **Who:** Aryan Mandapati
+- **What changed:** Rewrote `deploy/README.md` for an Azure for Students VM (VM size, inbound rules with SSH limited to your IP, the free Azure DNS hostname, stopping the VM to save credit) and noted Vultr, DigitalOcean and the laptop-plus-tunnel fallback as alternatives. Moved the setup scripts from `deploy/vultr/` to the host-neutral `deploy/vm/` and updated the references. Allowed a literal `~` folder in sandbox mount paths (Windows clones under `C:\Users\<you>\~\...`) and added Windows notes to `readme.md` and `web/README.md`. Kept Jai's live activity feed (WEB-10) as the only one; an overlapping local version was dropped before pushing.
+- **Requirement(s):** FR-4, NFR Security
+- **Commit:** this commit
 
 ## 2026-11-07: Heal and versions in the dashboard, with a real activity feed
 
