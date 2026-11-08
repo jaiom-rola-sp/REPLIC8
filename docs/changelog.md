@@ -2,31 +2,6 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
-## 2026-11-08: Messier legacy code, and MRP/400 as system D
-
-- **Who:** Claude (for Krish)
-- **What changed:**
-  - **B and C now look like real old code**, with every answer unchanged. B (COBOL): release 2 commands moved behind `WHEN OTHER` into an `R2-DISPATCH` paragraph with `GO TO`, `PERFORM ... THRU` exit paragraphs, 88-level flags, nested `IF`s, a change log, commented-out formulas, unused fields and a dead report paragraph. C (Java): release 2 methods split into `Sourcing`, `WhseRpt` and `Purch`, which extend a shared `PilRecs` helper class; duplicated helpers, a catalog cache, a deprecated formatter, dispatch through constants.
-  - **New system D, `legacy/d-mrp400-java`:** Krish's MRP/400 (from `krishthapa-portfolio/mrp400-legacy`). Added a batch queue mode so REPLIC8 can call it (line protocol on stdin, method names accepted, lists as `BEGIN-ITEMS`); its command-line mode is unchanged. 7 new transactions: `getRouting`, `calcMachineHours`, `checkWoReadiness`, `explodeBom`, `whereUsed`, `calcRolledCost`, `planReplenishment`. New `ROUTING.DAT` and a 3-level pump skid BOM. 15 operations in all, 1 a write (`createWorkOrder`).
-  - **Write-guard false positives:** `decide_access` marks any name containing a write verb as a write. `listPurchaseOrders` ("purchase") would have been locked, so it is now `listPoLines`; D's new names avoid "load" and "order". D's original `getWorkOrder` is still locked as a write although it only reads (not changed; guard decision for Krish).
-  - `test_legacy.py`: C's list uses `listPoLines`; new test for D's 15 operations and that `createWorkOrder` is a write. `onboard-demo.sh` uses `list_po_lines`. `legacy/README.md` documents the messy code and D; D's own README documents queue mode and the new transactions.
-- **Requirement(s):** FR-10, FR-3, FR-13
-- **Validation:** 391 recorded B and C calls (all 18 operations, good and bad input) are byte-identical before and after the messy rewrite. D's 8 original transactions in command-line mode: 73 recorded calls byte-identical, with old and new data. All 15 D operations run through `runtime/shim.py`. The `GET-REQUEST` rename still works on the messier COBOL. 232 backend tests pass, 43 skipped (need Docker). Not yet run: Docker onboarding with Nemotron.
-- **Commit:** "Messier B and C code; add MRP/400 as system D" on branch `legacy-expand` (not yet merged to `main`)
-
-## 2026-11-08: Demo legacy systems grow to 9 operations each
-
-- **Who:** Claude (for Krish)
-- **What changed:**
-  - **B, COBOL (`legacy/b-maintenance-cobol`):** 7 new read-only paragraphs: `LIST-SITE-REQUESTS`, `GET-WELL`, `GET-SERVICE-HISTORY`, `GET-TECHNICIAN`, `FIND-AVAILABLE-TECHS`, `CALC-DOWNTIME-COST` (barrels/day x $88 x days), `GET-WELL-RISK` (score 0 to 100, LOW to CRITICAL). New data: `wells.dat`, `techs.dat`, `history.dat`, requests R-1006 to R-1013. Date math uses GnuCOBOL intrinsics against a fixed batch date (2026-11-08), so replayed answers never drift.
-  - **C, Java (`legacy/c-inventory-java`):** 7 new read-only methods: `getWarehouse`, `listLowStock`, `getSupplier`, `getPartSourcing`, `listPoLines`, `getCheapestShipping`, `quoteDelivery` (stock + lane or supplier-direct, cheapest first). New data: `catalog.dat`, `suppliers.dat`, `purchase_orders.dat`, an ODESSA warehouse in `stock.dat`, and new lanes (all from ODESSA). Still J2SE 1.4 style.
-  - **Nothing old moves:** original records and lanes are untouched and new records never touch the original wells or warehouses, so `GET-REQUEST`, `LIST-OPEN-REQUESTS`, `checkStock` and `getShippingOptions` give byte-identical output. The `GET-REQUEST` to `FETCH-REQUEST` rename still works.
-  - **Demo story:** W-44 is shut in, risk CRITICAL (80); 7 days down costs $443,520.00; Maria Alvarez (T-101) is the free Permian electrician; 2 x CBL-0500 cable reaches Permian from Odessa in 5 days for $20,325.50.
-  - `deploy/vm/onboard-demo.sh` passes real IDs for all 18 tools; `docs/demo.md` tool counts updated; `legacy/README.md` lists every operation; `test_legacy.py` expects the new operation lists.
-- **Requirement(s):** FR-10, FR-3
-- **Validation:** Compiled with GnuCOBOL 3.1.2 and javac 17 (the sandbox's toolchain). Original operations compared byte-for-byte against the previous programs and data (57 cases, all identical). All 14 new operations run and parse through `runtime/shim.py`, including bad input (bad dates, days and quantities, unknown IDs). The self-heal `sed` from `docs/demo.md` recompiles and REPLIC8 offers `FETCH-REQUEST`. 231 backend tests pass, 43 skipped (they need Docker, not available where this was built). Not yet run: a full Docker onboarding with Nemotron.
-- **Commit:** "Expand demo legacy systems to 9 read-only operations each" on branch `legacy-expand` (not yet merged to `main`)
-
 ## 2026-11-08: Sandbox runs on Docker Desktop's classic image store
 
 - **Who:** Claude (for Aryan)

@@ -7,7 +7,7 @@ How to run the REPLIC8 demo on stage, about 4 minutes. Everything here is built 
 **The day before**
 
 - [ ] The VM is running (Azure portal, VM, **Start**) and `curl https://<backend hostname>/health` prints `{"status":"ok"}`.
-- [ ] Load the systems once: `sudo bash /opt/replic8/deploy/vm/onboard-demo.sh`. It prints the published tools: up to 9 per system (18 in all), always including `maintenance.get_request`, `maintenance.list_open_requests`, `inventory.check_stock`, `inventory.get_shipping_options`. See `legacy/README.md` for the full list.
+- [ ] Load the systems once: `sudo bash /opt/replic8/deploy/vm/onboard-demo.sh`. It prints the four tools: `maintenance.get_request`, `maintenance.list_open_requests`, `inventory.check_stock`, `inventory.get_shipping_options`.
 - [ ] The sandbox image is pinned by digest: `sudo grep SANDBOX_IMAGES /etc/replic8/replic8.env` shows `replic8-legacy-runtime:1@sha256:...` (setup does this after every build).
 - [ ] `REPLIC8_CORS_ORIGINS` is `https://www.replic8.work` (the Vercel site), and the dashboard connects from it.
 - [ ] Rehearse the whole script below once, then reset (see the end).
@@ -15,7 +15,7 @@ How to run the REPLIC8 demo on stage, about 4 minutes. Everything here is built 
 
 **One hour before**
 
-- [ ] Health check again. Open the Vercel dashboard, Settings: gateway address `https://<backend hostname>`, the gateway token, **Connect gateway**. Overview shows 2 systems and up to 18 operations.
+- [ ] Health check again. Open the Vercel dashboard, Settings: gateway address `https://<backend hostname>`, the gateway token, **Connect gateway**. Overview shows 2 systems and 4 operations.
 - [ ] In a terminal: `REPLIC8_TOKEN=<gateway token> python backend/scripts/mcp_demo.py --url https://<backend hostname>/mcp` answers with "Fastest: LONESTARHOT, 1 day(s), $1525.50".
 - [ ] An SSH session to the VM is open, ready for the live break.
 - [ ] The admin token is in a password manager or a note that isn't on screen.
@@ -24,7 +24,7 @@ How to run the REPLIC8 demo on stage, about 4 minutes. Everything here is built 
 
 **1. The problem (30 s).** Company A bought two companies. Their software is decades old: B's maintenance system is COBOL, C's inventory is Java from 2003. No APIs, so A's AI agents can't use them.
 
-**2. REPLIC8 reads the code (45 s).** Dashboard, **Overview**: "REPLIC8 read both repos, compiled them in a locked sandbox, and Nemotron picked the real functions." Point at the graph: the gateway, both systems, their read-only tools (up to 9 each), and the dashed `part_id` link found in real data. Open **Operations**: every tool shows its source file and line (`src/MAINT.cbl:95`), version and "read". Nothing is guessed: each tool passed contract tests against the real program.
+**2. REPLIC8 reads the code (45 s).** Dashboard, **Overview**: "REPLIC8 read both repos, compiled them in a locked sandbox, and Nemotron picked the real functions." Point at the graph: the gateway, both systems, four read-only tools, and the dashed `part_id` link found in real data. Open **Operations**: every tool shows its source file and line (`src/MAINT.cbl:95`), version and "read". Nothing is guessed: each tool passed contract tests against the real program.
 
 **3. An agent uses it over MCP (45 s).** In the terminal, run `mcp_demo.py` (or ask Claude Code with the MCP server added; see `backend/README.md`). It looks up pump request R-1001 in the COBOL system, checks stock for that part in the Java system, then finds shipping to the well's region: 12 in Houston, fastest LONESTARHOT, 1 day. Each step shows which file and version answered.
 
