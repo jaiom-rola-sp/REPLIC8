@@ -7,6 +7,11 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Claude (for Aryan; merging Krish's work)
 - **What changed:** Merged the `security` branch. Kept Krish's `Validator.validate_call` (`validator.py`) as the single caller check and extended it with admin tokens; REST and MCP both use it, and tool lists (`/v1/operations`, MCP `tools/list`) show only a token's scopes. Kept per-token scopes (`REPLIC8_TOKEN_SCOPES`, fail closed), digest-pinned sandbox images with `--pull never`, and the stuck-docker-client fix; startup pins the local runtime image to its digest when `REPLIC8_SANDBOX_IMAGES` is unset. Removed `security.py`; kept `notify.py` removed (Photon dropped; status goes to the activity log). Calls that pass validation are now audit-logged too. All of Krish's tests pass alongside main's (145 total).
 - **Requirement(s):** FR-5, FR-13, NFR Security
+## 2026-11-08: Vultr deployment for the backend; parser hang fix
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `deploy/` with a guide and a Vultr setup for the backend: `setup.sh` (Docker, Caddy HTTPS, Python, a non-root `replic8` service user, pre-downloaded grammars, runtime image, random tokens, firewall), a hardened systemd unit, a Caddyfile, an env template, `onboard-demo.sh` and `update.sh`. Setup also scopes the generated gateway token to both demo systems and pins the sandbox to the runtime image's digest (Krish's merged rules). Rehearsed the install as a separate service user (health, CORS for a Vercel origin, MCP behind a hostname, onboarding, MCP demo), and re-checked with the merged scopes and pinning. Fixed a hang found while testing: the COBOL grammar never finishes on some garbage input, so each file is now parsed in a time-limited child process (threat T30). Recorded the Vercel + Vultr hosting decision. 146 tests.
+- **Requirement(s):** FR-1, FR-5, NFR Security
 - **Commit:** this commit
 
 ## 2026-11-08: Company C is legacy Java; changelog merges without conflicts

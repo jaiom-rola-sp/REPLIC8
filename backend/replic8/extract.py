@@ -7,6 +7,9 @@ Fortran: subroutines and functions.
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 from tree_sitter_language_pack import get_parser
@@ -22,6 +25,10 @@ SUFFIXES = {
 # Entry points that run the program rather than one operation.
 COBOL_ENTRY = {"MAIN", "MAIN-LOGIC", "MAIN-PARA", "MAIN-PROCEDURE", "BEGIN", "START"}
 MAX_FILE_BYTES = 2_000_000
+# Some grammars never finish on hostile or garbage input (the COBOL grammar hangs
+# on a file containing just "x"). Each file is parsed in its own process with a
+# time limit, so a malicious repo can't freeze onboarding (docs/security.md T30).
+PARSE_TIMEOUT_S = 10.0
 
 
 def _walk(node):
@@ -80,12 +87,29 @@ def _confirmed(lines: list[str], name: str, line: int, lang: str) -> bool:
     return name.lower() in text.lower() and ("subroutine" in text.lower() or "function" in text.lower())
 
 
-def extract_symbols(repo_root: Path) -> tuple[list[Symbol], list[str]]:
+def _parse_isolated(lang: str, path: Path, timeout_s: float) -> tuple[list[tuple[str, int]], bool] | None:
+    """Parse one file in a child process. Returns (symbols, has_error), or None if it timed out or crashed."""
+    try:
+        proc = subprocess.run([sys.executable, "-m", "replic8.extract", lang, str(path)],
+                              capture_output=True, timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        return None
+    if proc.returncode != 0:
+        return None
+    try:
+        data = json.loads(proc.stdout)
+        return [(str(n), int(line)) for n, line in data["symbols"]], bool(data["has_error"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def extract_symbols(repo_root: Path, timeout_s: float = PARSE_TIMEOUT_S) -> tuple[list[Symbol], list[str]]:
     """Return (symbols, partly_parsed_files).
 
     Grammars don't cover every legacy dialect. When a file has parse errors we still
     keep the symbols the parser did read, but only after confirming each name is on
-    its reported line, and we report the file so the UI can flag it.
+    its reported line, and we report the file so the UI can flag it. A file whose
+    parse times out or crashes is reported too, with no symbols taken from it.
     """
     root = repo_root.resolve()
     symbols: list[Symbol] = []
@@ -97,12 +121,28 @@ def extract_symbols(repo_root: Path) -> tuple[list[Symbol], list[str]]:
         lang = language_of(path)
         if lang is None or path.stat().st_size > MAX_FILE_BYTES:
             continue
-        source = path.read_bytes()
-        tree = get_parser(lang).parse(source)
-        if tree.root_node.has_error:
+        parsed = _parse_isolated(lang, path, timeout_s)
+        if parsed is None:
             errors.append(rel.as_posix())
-        lines = source.decode("utf-8", "replace").splitlines()
-        pairs = EXTRACTORS[lang](tree)
+            continue
+        pairs, has_error = parsed
+        if has_error:
+            errors.append(rel.as_posix())
+        lines = path.read_bytes().decode("utf-8", "replace").splitlines()
         symbols.extend(Symbol(name, rel.as_posix(), line) for name, line in pairs
                        if _confirmed(lines, name, line, lang))
     return symbols, errors
+
+
+def _main(argv: list[str]) -> int:
+    """Child process entry: python -m replic8.extract <language> <file>."""
+    lang, file = argv
+    if lang not in EXTRACTORS:
+        return 2
+    tree = get_parser(lang).parse(Path(file).read_bytes())
+    print(json.dumps({"has_error": tree.root_node.has_error, "symbols": EXTRACTORS[lang](tree)}))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_main(sys.argv[1:]))

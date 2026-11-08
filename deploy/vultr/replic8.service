@@ -1,0 +1,35 @@
+[Unit]
+Description=REPLIC8 backend (MCP + REST gateway)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+User=replic8
+Group=replic8
+SupplementaryGroups=docker
+EnvironmentFile=/etc/replic8/replic8.env
+WorkingDirectory=/opt/replic8/backend
+ExecStart=/opt/replic8/venv/bin/python -m replic8
+Restart=on-failure
+RestartSec=3
+
+# Hardening. The service writes only its data folder; the code is read-only.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/replic8
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

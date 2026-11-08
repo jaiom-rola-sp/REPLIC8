@@ -119,7 +119,7 @@ Everyone must use these functions.
 | Sandbox | Docker | Isolates untrusted legacy code | |
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
-| Hosting | One cloud VM running docker compose | Simplest for a demo | **TBD** provider |
+| Hosting | Vercel (frontend) and one Vultr Ubuntu server with Docker and Caddy (backend) | Simplest for a demo | **Decided 2026-11-08** (`deploy/README.md`) |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning | **Dropped 2026-11-08.**
 
 ## 9. Anti-hallucination rules (for humans and AIs)
@@ -145,7 +145,7 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Both demo systems use the `parsed` tier (Aryan, 2026-11-07); a `black-box` Fortran path is a stretch goal if time allows. **Changed 2026-11-08:** C is now legacy Java (see requirements decisions).
   Original question: To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
 - [x] Which Nemotron model, and what API limits and key do we have? **Decided 2026-11-07:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (early access). Key is in Aryan's cloud environment secrets, not the repo. Rate limits still unknown.
-- [ ] Which cloud provider and who owns the keys?
+- [x] Which cloud provider and who owns the keys? **Decided 2026-11-08:** Vercel (frontend, Jai) and Vultr (backend). Still open: the backend hostname, and who holds the Vultr account and the admin token.
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
   **Proposed 2026-11-08 (in the demo systems):** part ID (e.g. `PMP-2210`) and site region (e.g. `PERMIAN`). See `legacy/README.md`. Team to confirm.
 - [ ] Should each demo legacy system live in its own GitHub repo, so REPLIC8 ingests it by URL? (Currently both are in `legacy/` in this repo.)

@@ -60,6 +60,7 @@ See [prd section 11](prd.md#11-open-questions).
 
 ## Decisions
 
+- **2026-11-08:** Hosting: the frontend on Vercel (Jai), the backend on one Vultr Ubuntu 24.04 server behind Caddy for HTTPS. Setup is scripted in `deploy/`. Reason: team choice; Vercel suits the static React app, and the backend needs Docker, which serverless hosting can't provide.
 - **2026-11-08:** Subsidiary C's legacy system is legacy Java (J2SE 1.4 style), not Fortran. Reason: Fortran reads more like a scripting/numeric language than business software; old Java is a more believable legacy system for an inventory company. Same operations, data and shared keys (part ID, site region). REPLIC8 still supports Fortran. B stays COBOL, and the live self-heal rename stays in COBOL.
 - **2026-11-08:** Example inputs given at onboarding are treated as real values: if the model's input rules reject them, REPLIC8 loosens only those value rules (pattern, length, enum) and logs a `schema_adjusted` event. Reason: in live testing Nemotron wrote a `part_id` pattern that rejected the real ID `PMP-2210`.
 - **2026-11-08:** Photon text notifications are dropped. Reason: team decision to focus scope; the dashboard's activity feed shows status instead.

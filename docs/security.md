@@ -40,6 +40,8 @@ How REPLIC8's backend handles the trust problems in turning untrusted legacy cod
 | T27 | A local demo repo path escapes its folder | Off by default; only `local://<name>` for folders directly inside `REPLIC8_LOCAL_REPO_ROOT`; symlinks skipped | `sources.py` |
 | T28 | The activity log leaks code, inputs or secrets, or carries script into the dashboard | Events take only identifiers, versions, counts and fixed kinds; text is stripped to a safe character set | `events.py` |
 | T29 | A browser on another site calls the gateway | No CORS unless exact origins are listed; `*` is refused | `config.py`, `gateway.py` |
+| T30 | A hostile legacy file hangs the parser and freezes onboarding | Each file is parsed in a child process with a 10-second limit; a file that times out is reported as partly parsed and gets no symbols. (Found while testing: the COBOL grammar never finishes on a file containing just `x`.) | `extract._parse_isolated` |
+| T31 | The hosted backend is exposed or over-privileged | Only Caddy (80/443) is public; the app listens on localhost; it runs as a non-root service user with systemd hardening and one writable folder; secrets live in a 0640 env file; grammars are fetched at setup, not at runtime | `deploy/vultr/` |
 | T19 | API key leaks or goes to the wrong host | Key only from `NVIDIA_API_KEY` (in the cloud session, injected by the network proxy so code never sees it); https-only base URL; redirects not followed; key kept out of logs, errors and `repr` | `nemotron.py` |
 
 ## Known gaps (not done yet)

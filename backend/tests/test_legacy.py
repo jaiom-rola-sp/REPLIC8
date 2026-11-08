@@ -67,6 +67,17 @@ def test_unparseable_file_is_reported_not_guessed(tmp_path):
     assert symbols == [] and partial == ["bad.f90"]
 
 
+def test_hostile_file_cannot_hang_extraction(tmp_path):
+    import time
+    (tmp_path / "evil.cbl").write_text("x")  # the COBOL grammar never finishes on this
+    shutil.copy(B / "src" / "MAINT.cbl", tmp_path / "MAINT.cbl")
+    start = time.time()
+    symbols, partial = extract_symbols(tmp_path, timeout_s=3)
+    assert time.time() - start < 15
+    assert "evil.cbl" in partial
+    assert "GET-REQUEST" in {s.name for s in symbols}  # the real file still works
+
+
 def test_symbol_must_be_on_its_reported_line():
     from replic8.extract import _confirmed
     lines = ["       GET-REQUEST.", "  subroutine check_stock(part_id)", "    static void checkStock(String id) {"]

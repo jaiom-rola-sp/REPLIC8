@@ -1,0 +1,19 @@
+# REPLIC8 backend behind Caddy. setup.sh replaces the site name with REPLIC8_DOMAIN.
+# Caddy gets and renews the HTTPS certificate automatically.
+{$REPLIC8_DOMAIN} {
+	encode gzip
+
+	# The app checks body sizes too; this stops oversized requests earlier.
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:8000
+}
