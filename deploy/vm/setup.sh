@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# REPLIC8 backend setup for a fresh Vultr Ubuntu 24.04 server. Run as root.
+# REPLIC8 backend setup for a fresh Ubuntu 24.04 server (Azure VM). Run as root.
 #
-#   sudo REPLIC8_DOMAIN=api.example.com bash deploy/vultr/setup.sh
+#   sudo REPLIC8_DOMAIN=replic8-demo.eastus.cloudapp.azure.com bash deploy/vm/setup.sh
 #
 # Safe to re-run. It installs Docker, Caddy (HTTPS) and Python, creates a
 # `replic8` service user, installs the backend into /opt/replic8, builds the
@@ -60,7 +60,7 @@ docker build -q -t replic8-legacy-runtime:1 "$APP_DIR/backend/runtime"
 
 echo "== Secrets file"
 if [[ ! -f "$ENV_FILE" ]]; then
-  install -o root -g replic8 -m 0640 "$APP_DIR/deploy/vultr/replic8.env.example" "$ENV_FILE"
+  install -o root -g replic8 -m 0640 "$APP_DIR/deploy/vm/replic8.env.example" "$ENV_FILE"
   gateway="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
   admin="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
   # Gateway tokens are fail-closed: give this one the two demo systems.
@@ -77,8 +77,8 @@ sed -i "s|^REPLIC8_SANDBOX_IMAGES=.*|REPLIC8_SANDBOX_IMAGES=replic8-legacy-runti
 echo "   Sandbox image pinned: replic8-legacy-runtime:1@${pinned:0:19}..."
 
 echo "== Services"
-install -m 0644 "$APP_DIR/deploy/vultr/replic8.service" /etc/systemd/system/replic8.service
-sed "s|{\$REPLIC8_DOMAIN}|$DOMAIN|" "$APP_DIR/deploy/vultr/Caddyfile" > /etc/caddy/Caddyfile
+install -m 0644 "$APP_DIR/deploy/vm/replic8.service" /etc/systemd/system/replic8.service
+sed "s|{\$REPLIC8_DOMAIN}|$DOMAIN|" "$APP_DIR/deploy/vm/Caddyfile" > /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl daemon-reload
 systemctl enable replic8
@@ -96,4 +96,4 @@ echo "Done. Next:"
 echo "  1. Edit $ENV_FILE: set NVIDIA_API_KEY and REPLIC8_CORS_ORIGINS (your Vercel URL)."
 echo "  2. systemctl restart replic8"
 echo "  3. curl https://$DOMAIN/health"
-echo "  4. sudo bash $APP_DIR/deploy/vultr/onboard-demo.sh"
+echo "  4. sudo bash $APP_DIR/deploy/vm/onboard-demo.sh"

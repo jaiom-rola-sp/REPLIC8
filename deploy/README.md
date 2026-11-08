@@ -3,42 +3,54 @@
 | Part | Where | Who |
 |------|-------|-----|
 | Frontend (`web/`) | Vercel | Jai |
-| Backend (`backend/`): MCP + REST gateway, sandbox, Nemotron | One Vultr server | Backend team |
+| Backend (`backend/`): MCP + REST gateway, sandbox, Nemotron | One Azure VM (Azure for Students) | Backend team |
 
-The browser talks to the backend over HTTPS. AI agents talk to the same backend over MCP at `https://<backend domain>/mcp`.
+The browser talks to the backend over HTTPS. AI agents talk to the same backend over MCP at `https://<backend hostname>/mcp`.
 
-## 1. Create the Vultr server
+## 1. Create the Azure VM
 
-1. In Vultr, **Deploy New Server**, then choose **Cloud Compute**, **Ubuntu 24.04 LTS x64**, and at least **2 vCPU / 4 GB RAM** (compiling COBOL and Java runs on this machine). Pick a region near the demo.
-2. Add your **SSH key**. Don't use password login.
-3. Optional but recommended: a **Vultr Firewall Group** allowing only TCP 22, 80 and 443. `setup.sh` also turns on the same rules with `ufw`.
-4. Note the server's public IPv4 address.
+Azure for Students gives credit without a card. In the [Azure portal](https://portal.azure.com):
 
-## 2. Pick the backend's hostname
+1. **Create a resource**, then **Virtual machine**.
+2. **Basics:**
+   - Resource group: new, e.g. `replic8-rg`. Region: one near the demo that your student subscription allows (if a size is unavailable, try another region).
+   - Image: **Ubuntu Server 24.04 LTS - x64 Gen2**.
+   - Size: **Standard_B2s** (2 vCPU, 4 GB RAM). Compiling COBOL and Java runs on this machine, so don't go smaller.
+   - Authentication: **SSH public key**, username `azureuser`. Download the key Azure generates (or paste your own).
+   - Inbound ports: allow **SSH (22)**, **HTTP (80)** and **HTTPS (443)**.
+3. **Disks:** the default 30 GB is enough.
+4. **Review + create**, then **Create**.
+5. When it's deployed, open the VM. Under **Networking**, edit the SSH (22) rule's **Source** to *My IP address*, so only you can SSH in. Leave 80 and 443 open to the internet.
+6. **Stop the VM when you're not using it** (Overview, **Stop**) so it doesn't use up the student credit. The public IP and hostname stay the same if you set the IP to **Static** under Networking, then the public IP.
 
-HTTPS needs a hostname, because the Vercel site is HTTPS and browsers block calls to plain HTTP.
+**Other hosts:** the setup script is plain Ubuntu 24.04, so a Vultr or DigitalOcean (GitHub Student Developer Pack) VM with 2 vCPU / 4 GB works the same way: open ports 22, 80 and 443, and use your own domain or `<ip-with-dashes>.sslip.io` as the hostname. The fallback from `docs/prd.md` section 8, a laptop plus a free tunnel, also works with the local run steps in `backend/README.md`.
 
-- **Own domain:** add a DNS `A` record such as `api.yourdomain.com` pointing at the server IP.
-- **No domain:** use `<ip-with-dashes>.sslip.io`. For example, IP `203.0.113.7` becomes `203-0-113-7.sslip.io`, which resolves to that IP with no DNS setup.
+## 2. Give it a hostname (free)
 
-Caddy gets the HTTPS certificate automatically on first start.
+HTTPS needs a hostname, because the Vercel site is HTTPS and browsers block calls to plain HTTP. Azure gives one for free:
+
+1. Open the VM, then click its **Public IP address**, then **Configuration**.
+2. Set **DNS name label** to something like `replic8-demo`, and **Save**.
+3. Your hostname is now `replic8-demo.<region>.cloudapp.azure.com` (shown on that page as the DNS name).
+
+Caddy gets the HTTPS certificate for it automatically on first start. With your own domain instead, add a DNS `CNAME` record pointing at that Azure hostname.
 
 ## 3. Install the backend
 
 SSH in, get the code onto the server, and run the setup script:
 
 ```bash
-ssh root@<server ip>
+ssh -i <path to the downloaded key>.pem azureuser@<your hostname>
 ```
 
 ```bash
 git clone https://github.com/jaiom-rola-sp/REPLIC8.git && cd REPLIC8
 ```
 
-If the repo is private, clone with a read-only GitHub fine-grained token, or copy it up with `scp`.
+If the repo is private, clone with a read-only GitHub fine-grained token, or copy it up with `scp`. On Windows, `ssh` works in PowerShell; if it complains about key permissions, right-click the `.pem` file, **Properties**, **Security**, and leave only your own user with access.
 
 ```bash
-sudo REPLIC8_DOMAIN=<your hostname> bash deploy/vultr/setup.sh
+sudo REPLIC8_DOMAIN=<your hostname> bash deploy/vm/setup.sh
 ```
 
 The script installs Docker, Caddy and Python, creates a `replic8` service user, installs the backend in `/opt/replic8`, pre-downloads the COBOL/Java/Fortran parser grammars, builds the legacy runtime image and pins the sandbox to its exact digest, writes `/etc/replic8/replic8.env` with fresh random tokens (the gateway token is scoped to `maintenance.*` and `inventory.*`), and starts the `replic8` and `caddy` services. It takes about 5 to 10 minutes the first time.
@@ -69,7 +81,7 @@ That should print `{"status":"ok"}`.
 ## 5. Load the demo systems
 
 ```bash
-sudo bash /opt/replic8/deploy/vultr/onboard-demo.sh
+sudo bash /opt/replic8/deploy/vm/onboard-demo.sh
 ```
 
 It onboards Company B (COBOL) and Company C (Java) and prints the four published tools.
@@ -93,7 +105,7 @@ sudo grep TOKENS /etc/replic8/replic8.env
 |------|---------|
 | Logs | `sudo journalctl -u replic8 -f` |
 | Restart | `sudo systemctl restart replic8` |
-| Deploy new code | `cd ~/REPLIC8 && git pull && sudo REPLIC8_DOMAIN=<hostname> bash deploy/vultr/update.sh` |
+| Deploy new code | `cd ~/REPLIC8 && git pull && sudo REPLIC8_DOMAIN=<hostname> bash deploy/vm/update.sh` |
 | Live self-heal demo | Edit `/opt/replic8/legacy/b-maintenance-cobol/src/MAINT.cbl` (rename `GET-REQUEST` to `FETCH-REQUEST` in both places), then `POST /v1/admin/systems/maintenance/check` with the admin token |
 | Undo the demo rename | Re-run `update.sh` (it copies the repo's code back) |
 

@@ -4,6 +4,7 @@ Initial Commit:
 
 1. Install [Obsidian](https://obsidian.md).
 2. Clone the repo: `git clone https://github.com/jaiom-rola-sp/REPLIC8.git`
+   On Windows, clone into a plain folder such as `C:\Users\<you>\Development`. Don't type `~` in PowerShell paths; it creates a folder literally named `~`, which breaks the frontend dev server.
 3. In Obsidian, open **Manage vaults → Open folder as vault** and select the cloned `REPLIC8` folder.
 4. Pull the latest changes before you start: `git pull`.
 

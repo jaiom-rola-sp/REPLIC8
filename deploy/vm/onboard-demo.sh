@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Onboard the two demo legacy systems on the server and wait until both are published.
-#   sudo bash /opt/replic8/deploy/vultr/onboard-demo.sh
+#   sudo bash /opt/replic8/deploy/vm/onboard-demo.sh
 # Reads the admin token from /etc/replic8/replic8.env; it is never printed.
 set -euo pipefail
 

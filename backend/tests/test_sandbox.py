@@ -171,3 +171,14 @@ def test_executor_end_to_end(box):
     bad = op.model_copy(update={"invocation": op.invocation.model_copy(update={"argv": sh('echo \'{"oops":1}\'')})})
     with pytest.raises(OutputSchemaError):
         executor.call(bad, version, {"id": "R-7"})
+
+
+@pytest.mark.parametrize("path,ok", [
+    ("/home/u/data/repos/x", True),
+    (r"C:\Users\aryan\~\Development\zero-day\backend\data", True),  # a literal "~" folder
+    ("C:/Users/a/b", True),
+    ("/data/a,b", False), ("/data/a b", False), ('/data/a"b', False), ("/data/a=b", False),
+])
+def test_safe_mount_paths(path, ok):
+    from replic8.sandbox import SAFE_PATH
+    assert bool(SAFE_PATH.match(path)) is ok

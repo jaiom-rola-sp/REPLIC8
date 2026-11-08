@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Azure hosting guide, deploy/vm, and Windows path fixes
+
+- **Who:** Aryan Mandapati
+- **What changed:** Rewrote `deploy/README.md` for an Azure for Students VM (VM size, inbound rules with SSH limited to your IP, the free Azure DNS hostname, stopping the VM to save credit) and noted Vultr, DigitalOcean and the laptop-plus-tunnel fallback as alternatives. Moved the setup scripts from `deploy/vultr/` to the host-neutral `deploy/vm/` and updated the references. Allowed a literal `~` folder in sandbox mount paths (Windows clones under `C:\Users\<you>\~\...`) and added Windows notes to `readme.md` and `web/README.md`. Kept Jai's live activity feed (WEB-10) as the only one; an overlapping local version was dropped before pushing.
+- **Requirement(s):** FR-4, NFR Security
+- **Commit:** this commit
+
 ## 2026-11-07: Heal and versions in the dashboard, with a real activity feed
 
 - **Who:** Claude (for Jaiom)
