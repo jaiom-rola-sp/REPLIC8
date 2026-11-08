@@ -41,11 +41,19 @@ RUNTIMES = {
 # and run, but they are called another way (the Python caller and the command-line wrapper), so the protocol
 # command must never be built for them.
 PROTOCOL = {"cobol", "fortran", "java"}
+# Languages whose functions are called by name with JSON arguments (runtime/call_python.py).
+FUNCTION = {"python"}
+PY_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
+PY_FILE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]{0,250}\.py$")
 
 
 def argv_for(symbol: str, file: str) -> list[str]:
     """Command that calls `symbol` defined in `file`. Empty list means "can't call it"."""
     lang = language_of(PurePosixPath(file))
+    if lang in FUNCTION:
+        if not PY_NAME.match(symbol) or not PY_FILE.match(file) or ".." in file.split("/"):
+            return []
+        return ["python3", "/replic8/call_python.py", f"/app/{file}", symbol]
     if lang not in PROTOCOL or not SYMBOL.match(symbol):
         return []
     if lang == "java":
@@ -69,6 +77,12 @@ def callable_symbols(repo_root: Path, symbols: list[Symbol]) -> list[Symbol]:
     texts: dict[str, str] = {}
     kept = []
     for sym in symbols:
+        lang = language_of(PurePosixPath(sym.file))
+        if lang in FUNCTION:  # called by name, so every public function is a candidate
+            kept.append(sym)
+            continue
+        if lang not in PROTOCOL:  # C, Pascal, Perl and PHP are not callable yet
+            continue
         if sym.file not in texts:
             path = (root / sym.file).resolve()
             texts[sym.file] = path.read_text(errors="replace").upper() if root in path.parents else ""

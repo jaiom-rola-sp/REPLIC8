@@ -83,6 +83,6 @@ def test_a_repo_with_no_program_fails_clearly(tmp_path):
 
 def test_the_protocol_command_is_never_built_for_languages_that_do_not_speak_it():
     from replic8.runtimes import argv_for
-    for file in ("src/app.py", "src/orders.c", "src/pay.pas", "src/report.pl", "src/catalog.php"):
+    for file in ("src/orders.c", "src/pay.pas", "src/report.pl", "src/catalog.php"):
         assert argv_for("get_part", file) == [], file
     assert argv_for("GET-REQUEST", "src/MAINT.cbl")[-1] == "GET-REQUEST"      # the three that do speak it still work

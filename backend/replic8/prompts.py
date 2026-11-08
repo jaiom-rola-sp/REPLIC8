@@ -151,7 +151,7 @@ RULES = """Rules:
 - Do not write code or commands. REPLIC8 builds the call to each function itself.
 - Never invent functions, files, or line numbers. If nothing qualifies, return {"operations": []}.
 
-How replic8 calls a function (your schemas must match this exactly):
+How replic8 calls a COBOL, Fortran or Java function (a function listed WITHOUT parameters; your schemas must match this exactly):
 - The input is a JSON object. Each property becomes one KEY=VALUE line for the program: the name
   is upper-cased and "_" becomes "-" (part_id -> PART-ID). Values are strings or numbers, at most
   64 characters, with no "=" or line breaks.
@@ -162,13 +162,21 @@ How replic8 calls a function (your schemas must match this exactly):
   closes an item). A COUNT line always comes back as top-level "count".
 - An ERROR=... line makes the call fail, so never put "error" in an output schema.
 
+How replic8 calls a Python function (a function listed WITH parameters; your schemas must match this exactly):
+- The input is a JSON object passed to the function as keyword arguments, so each property is one
+  parameter, spelled exactly as listed. Values are strings, numbers or true/false.
+- The return value comes back as JSON: an object stays as it is, a list comes back as {"items": [...]},
+  and any other value comes back as {"result": value}. Anything the function prints is thrown away.
+- If the function raises an error, the call fails.
+
 Field names (this is how replic8 links systems to each other):
 - Name every property after the exact key the program reads or prints, converted as above. Find
   them in the code: the keys it matches when reading input, and the keys it prints.
 - Never rename, shorten, translate or merge keys, and never add a property the code doesn't read
   or print. Keeping legacy names means the same data has the same name in every system.
 - Input property names use lowercase letters, digits and "_", start with a letter, and are at
-  most 31 characters.
+  most 31 characters. A function listed with parameters is the exception: use its parameter
+  names exactly as listed.
 
 Descriptions (agents read these to choose and call a tool):
 - "description" (at most 500 characters, plain language, no code): what the operation does, when
@@ -181,7 +189,8 @@ Descriptions (agents read these to choose and call a tool):
 
 Schemas (in addition to the input rules above):
 - Input: list every property the function needs in "required". Take each "maxLength" from the
-  field size in the code (PIC X(8) -> 8, character(len=10) -> 10).
+  field size in the code (PIC X(8) -> 8, character(len=10) -> 10). A function listed with parameters has no declared size: use a
+  "maxLength" of 64 on strings unless the code shows a limit.
 - Output: "required" lists only the properties printed on every path, including the not-found
   path. Describe "items" as an array of objects with their own properties. Don't set
   "additionalProperties": false on outputs.
@@ -192,6 +201,14 @@ def _rules(nonce: str) -> str:
     return RULES.replace("__NONCE__", nonce).replace("__MAX__", str(MAX_OPERATIONS))
 
 
+def _described(sym: Symbol) -> str:
+    """One line per function; parameters are shown when we know them so the model uses the real names."""
+    if not sym.params:
+        return f"- {sym.name} at {sym.file}:{sym.line}"
+    shown = ", ".join(n if required else f"{n}=<default>" for n, required in sym.params)
+    return f"- {sym.name}({shown}) at {sym.file}:{sym.line}"
+
+
 def propose_messages(namespace: str, tier: Tier, ctx: Context,
                      symbols: list[Symbol] | None = None) -> tuple[str, str]:
     system = (
@@ -200,7 +217,7 @@ def propose_messages(namespace: str, tier: Tier, ctx: Context,
     )
     parts = [f"Ingestion tier: {tier.value}."]
     if symbols:
-        listed = "\n".join(f"- {s.name} at {s.file}:{s.line}" for s in symbols[:500])
+        listed = "\n".join(_described(s) for s in symbols[:500])
         parts.append("Only these functions exist (extracted by a parser). Use only these:\n" + listed)
     parts.append("Source files:\n" + ctx.text)
     parts.append("Return the JSON object now.")
@@ -225,7 +242,7 @@ def heal_messages(namespace: str, tier: Tier, ctx: Context, previous: list[Opera
     parts = [f"Ingestion tier: {tier.value}.", "Operations before the change:\n" + json.dumps(old, indent=1)]
     parts.append(f"What changed:\n<<<DIFF {ctx.nonce}>>>\n{diff}\n<<<END {ctx.nonce}>>>")
     if symbols:
-        listed = "\n".join(f"- {s.name} at {s.file}:{s.line}" for s in symbols[:500])
+        listed = "\n".join(_described(s) for s in symbols[:500])
         parts.append("Functions in the new code (extracted by a parser). Use only these:\n" + listed)
     parts.append("New source files:\n" + ctx.text)
     parts.append("Return the JSON object now.")

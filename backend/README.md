@@ -24,7 +24,8 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `config.py` | Settings from env vars; validates tokens, write allowlist, origins and hosts | NFR Security |
 | `models.py` | Operation, source location, contract test result, wrapper version | FR-2, FR-3, FR-11, FR-13 |
 | `ingest.py` | Safe GitHub clone, language detection | FR-1, FR-11 |
-| `guard.py` | Checks model proposals against real symbols and files | FR-2, FR-11, FR-13 |
+| `guard.py` | Checks model proposals against real symbols, files and (Python) parameter names | FR-2, FR-11, FR-13 |
+| `runtime/call_python.py` | Fixed harness inside the sandbox: calls one Python function with JSON keyword arguments; legacy prints and errors never reach the answer | FR-14 |
 | `sandbox.py` | Runs legacy code in a locked-down Docker container | FR-4 |
 | `executor.py` | Calls an operation in the sandbox; checks input and output schemas | FR-3, FR-5 |
 | `registry.py` | Versioned wrappers; publishes only tested operations; rollback | FR-3, FR-8 |

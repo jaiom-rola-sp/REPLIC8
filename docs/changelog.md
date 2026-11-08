@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: More languages, step 3: the Python function caller
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Python functions can now be published as tools. New fixed harness `runtime/call_python.py` (in the image) imports one file and calls one function with JSON keyword arguments; prints and raw writes are discarded, stdin is empty, errors are reported by type only, results become a JSON object (list -> `items`, scalar -> `result`). `extract.py` reads Python parameters; `guard.py` rejects proposals whose input fields are not the function's parameter names or that omit required ones; `prompts.py` tells the model how Python is called; `runtimes.argv_for` builds the command (never the model).
+- **Requirement(s):** FR-14, FR-11
+- **Validation:** 200 backend tests pass (6 skipped). New: 14 in `test_python_calls.py` (harness behavior in the real sandbox) and `test_python_pipeline.py` (onboard, contract tests, publish, call over REST, missing input gives 422). Two older tests updated because Python now has a caller.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-07: More languages, step 2: finding functions in C, Pascal, Python, Perl and PHP
 
 - **Who:** Claude (for Jaiom)

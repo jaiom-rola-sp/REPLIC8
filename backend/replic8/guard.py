@@ -75,6 +75,24 @@ class Symbol:
     name: str
     file: str
     line: int
+    # For a function that is called by name (Python): (parameter name, required) in order.
+    params: tuple[tuple[str, bool], ...] = ()
+
+
+def _params_problem(params: tuple[tuple[str, bool], ...], schema: dict[str, Any]) -> str:
+    """Why a proposed input schema cannot call this function, or "" if it can."""
+    names = {n for n, _ in params}
+    required_params = {n for n, req in params if req}
+    props = set(schema["properties"]) if isinstance(schema.get("properties"), dict) else set()
+    listed = set(schema["required"]) if isinstance(schema.get("required"), list) else set()
+    extra = props - names
+    if extra:
+        return "input fields must be the function's parameter names (not: " + ", ".join(sorted(extra))[:100] + ")"
+    if required_params - props:
+        return "missing required parameter(s): " + ", ".join(sorted(required_params - props))[:100]
+    if required_params - listed:
+        return "required must list every parameter that has no default"
+    return ""
 
 
 def _words(name: str) -> list[str]:
@@ -144,6 +162,7 @@ def validate_proposal(
     if tier is Tier.parsed and not symbols:
         raise ValueError("parsed tier needs the extracted symbol list")
     known = {(s.name, s.file, s.line) for s in symbols or []}
+    by_key = {(s.name, s.file, s.line): s for s in symbols or []}
 
     accepted: list[Operation] = []
     rejected: dict[str, str] = {}
@@ -152,6 +171,12 @@ def validate_proposal(
         if tier is Tier.parsed and (item["symbol"], item["file"], item["line"]) not in known:
             rejected[label] = "does not match an extracted symbol"
             continue
+        symbol = by_key.get((item["symbol"], item["file"], item["line"]))
+        if symbol is not None and symbol.params:
+            problem = _params_problem(symbol.params, item["input_schema"])
+            if problem:
+                rejected[label] = problem
+                continue
         try:
             source = SourceLocation(file=item["file"], line=item["line"])
         except ValidationError:

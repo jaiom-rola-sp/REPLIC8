@@ -101,7 +101,7 @@ def test_argv_is_built_by_replic8():
     assert argv_for("checkStock", "src/com/subc/pil/Inventory.java")[-2:] == ["/build/app.jar", "checkStock"]
     assert argv_for("check_stock", "src/inventory.f90")[-2:] == ["/build/inventory", "check_stock"]
     assert argv_for("x; rm -rf /", "src/MAINT.cbl") == []
-    assert argv_for("main", "src/app.py") == []
+    assert argv_for("main", "src/app.c") == []
 
 
 # ---------- shim protocol (pure functions) ----------

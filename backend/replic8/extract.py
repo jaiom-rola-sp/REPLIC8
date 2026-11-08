@@ -118,7 +118,25 @@ def _pascal(tree) -> list[tuple[str, int]]:
     return found
 
 
-def _python(tree) -> list[tuple[str, int]]:
+def _python_params(func) -> list[list]:
+    """[name, required] per parameter that a JSON object can fill. *args, **kwargs and separators are skipped."""
+    params = func.child_by_field_name("parameters")
+    out: list[list] = []
+    for child in params.children if params is not None else []:
+        if child.type == "identifier":
+            out.append([_text(child), True])
+        elif child.type == "typed_parameter":
+            name = next((c for c in child.children if c.type == "identifier"), None)
+            if name is not None:
+                out.append([_text(name), True])
+        elif child.type in ("default_parameter", "typed_default_parameter"):
+            name = child.child_by_field_name("name")
+            if name is not None and name.type == "identifier":
+                out.append([_text(name), False])
+    return out
+
+
+def _python(tree) -> list[tuple]:
     found = []
     for node in _walk(tree.root_node):
         if node.type != "function_definition":
@@ -130,7 +148,7 @@ def _python(tree) -> list[tuple[str, int]]:
             continue
         name = node.child_by_field_name("name")
         if name is not None and not name.text.startswith(b"_") and name.text != b"main":
-            found.append((_text(name), name.start_point[0] + 1))
+            found.append((_text(name), name.start_point[0] + 1, _python_params(node)))
     return found
 
 
@@ -187,8 +205,8 @@ def _confirmed(lines: list[str], name: str, line: int, lang: str) -> bool:
     return name.lower() in text.lower() and ("subroutine" in text.lower() or "function" in text.lower())
 
 
-def _parse_isolated(lang: str, path: Path, timeout_s: float) -> tuple[list[tuple[str, int]], bool] | None:
-    """Parse one file in a child process. Returns (symbols, has_error), or None if it timed out or crashed."""
+def _parse_isolated(lang: str, path: Path, timeout_s: float) -> tuple[list[tuple[str, int, tuple]], bool] | None:
+    """Parse one file in a child process. Returns ([(name, line, params)], has_error), or None if it timed out or crashed."""
     try:
         proc = subprocess.run([sys.executable, "-m", "replic8.extract", lang, str(path)],
                               capture_output=True, timeout=timeout_s)
@@ -198,7 +216,8 @@ def _parse_isolated(lang: str, path: Path, timeout_s: float) -> tuple[list[tuple
         return None
     try:
         data = json.loads(proc.stdout)
-        return [(str(n), int(line)) for n, line in data["symbols"]], bool(data["has_error"])
+        return [(str(item[0]), int(item[1]), tuple((str(p), bool(r)) for p, r in (item[2] if len(item) > 2 else [])))
+                for item in data["symbols"]], bool(data["has_error"])
     except (ValueError, KeyError, TypeError):
         return None
 
@@ -234,7 +253,7 @@ def extract_symbols(repo_root: Path, timeout_s: float = PARSE_TIMEOUT_S) -> tupl
         if has_error:
             errors.append(rel.as_posix())
         lines = path.read_bytes().decode("utf-8", "replace").splitlines()
-        symbols.extend(Symbol(name, rel.as_posix(), line) for name, line in pairs
+        symbols.extend(Symbol(name, rel.as_posix(), line, params) for name, line, params in pairs
                        if _confirmed(lines, name, line, lang))
     return symbols, errors
 
