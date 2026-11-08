@@ -1,6 +1,7 @@
 import io
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -98,7 +99,9 @@ def test_rejects_unlisted_image_and_outside_dirs(tmp_path):
         box.run(IMAGE, repos / "x", ["true"], b"x" * 100_000)
 
 
-docker = pytest.mark.skipif(DIGEST is None, reason=f"needs Docker with {TAG} pulled")
+# Sandbox only accepts Linux-style code paths (SAFE_PATH), so real-container tests need a Linux host.
+docker = pytest.mark.skipif(DIGEST is None or sys.platform == "win32",
+                            reason=f"needs a Linux host with Docker and {TAG} pulled")
 
 
 @pytest.fixture
