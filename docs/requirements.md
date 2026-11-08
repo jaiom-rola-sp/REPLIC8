@@ -21,7 +21,7 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 | FR-3 | Contract tests run against the real legacy code; failing operations are not published | Must | Not started | |
 | FR-4 | Run legacy code in a Docker sandbox | Must | Not started | |
 | FR-5 | Gateway unifies multiple systems under one API/MCP with namespaced tools | Must | Not started | |
-| FR-6 | Graph UI of companies/systems, operations, and links between them (edges from schemas) | Must | Not started | |
+| FR-6 | Graph UI of companies/systems, operations, and links between them (edges from schemas) | Must | UI preview | React Flow workspace in `web/`; example links clearly labeled, actual schema-edge backend pending |
 | FR-7 | Self-healing: detect failing tests or a changed legacy repo, Nemotron diagnoses against the source diff, regenerate, replay tests, save only on pass | Should | Not started | No vision model in v1 |
 | FR-8 | Version history and rollback of wrappers | Should | Not started | |
 | FR-9 | Extension module: add functionality separate from legacy code | Could | Not started | Stretch |
@@ -29,6 +29,16 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 | FR-11 | Language-agnostic ingestion with 3 tiers: parsed, inferred (LLM), black-box (CLI/HTTP wrapper). Label each operation with its tier; every tier must pass contract tests | Must | Not started | "Any language" is the goal, proven on demo languages |
 | FR-12 | Send-only status updates to allowlisted phone numbers (e.g. project owner) via Photon on key events (published, failure, heal start/success/fail). No inbound handling, no secrets or code in messages, a failed send never blocks the pipeline | Should | Not started | Numbers/keys in env vars, not the repo |
 | FR-13 | Operations are marked read or write; write operations are disabled by default and need explicit authorization | Must | Not started | v1 demo is lookups and recommendations only |
+
+## Website review requirements
+
+- **WEB-1:** A black, starry landing page with white and silver accents, continuously moving stars at different depths, and a scroll story inspired by the supplied reference.
+- **WEB-2:** Hero heading is REPLIC8; its 8 becomes a moving infinity object followed through the story, with a visible idle float and rotation.
+- **WEB-3:** Generate the silver sculpture and space background through Higgsfield MCP; retain assets locally and present them for review.
+- **WEB-4:** Provide a separate app dashboard with an interactive graph, systems, operations, and activity. Mark demo data clearly and connect only APIs that exist.
+- **WEB-5:** Support mobile layouts, keyboard use, and reduced motion; keep the result local for review before publication.
+- **WEB-6:** Increase star density and tie hyperspace speed and streak length to scroll velocity, settling to ambient drift when scrolling stops.
+- **WEB-7:** Choreograph the 8 with spins, changing depth and scale, and a reversible camera passage through one loop between story chapters. Keep normal scrolling and provide a restrained reduced-motion path.
 
 ## Non-functional requirements
 
@@ -57,3 +67,5 @@ See [prd section 10](prd.md#10-open-questions).
 - **2026-11-07:** Replic8 should handle any legacy language. Defined as 3 ingestion tiers (parsed, inferred, black-box) with a confidence label per operation, not a promise that every repo works. Reason: nobody can guarantee "any," but tiers plus mandatory contract tests keep it honest.
 - **2026-11-07:** Project owner notifications go through Photon and are strictly outbound. Reason: no inbound path means no way to trigger actions by text, which keeps the system's write access out of messaging.
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.
+
+- **2026-11-07:** Website direction is a silver infinity object on a dark starfield, with a narrative landing page and a separate SaaS workspace. The numeral 8 in REPLIC8 becomes the object followed on scroll. Assets generated through Higgsfield; local review requested before publication.

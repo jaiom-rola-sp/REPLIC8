@@ -1,0 +1,18 @@
+{
+  "provider": "Higgsfield MCP",
+  "generated_on": "2026-11-07",
+  "assets": [
+    {
+      "file": "silver-eight.png",
+      "job_id": "dc94fdae-cd70-433b-9a13-f695ac55033c",
+      "model": "gpt_image_2_6",
+      "description": "Monochrome polished silver numeral 8 / infinity sculpture on black."
+    },
+    {
+      "file": "starfield.jpg",
+      "job_id": "5e87e7cd-58bf-4a5b-9e63-e50f4c04d3bb",
+      "model": "gpt_image_2_6",
+      "description": "Sparse monochrome stars and dark silver interstellar dust."
+    }
+  ]
+}

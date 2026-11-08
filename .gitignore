@@ -6,3 +6,10 @@ data/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+
+# Frontend build and local configuration
+web/node_modules/
+web/dist/
+web/.env*
+!web/.env.example
+web/review/

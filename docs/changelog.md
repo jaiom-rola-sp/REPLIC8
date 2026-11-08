@@ -2,6 +2,30 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Scroll-speed hyperspace and a journey through the loop
+
+- **Who:** Codex (for Jaiom)
+- **What changed:** Increased background star density and added scroll-velocity acceleration with bounded radial trails, reverse travel, and smooth deceleration. Added a dedicated passage between Discover and Connect: the silver 8 spins, changes depth and scale, and frames a camera move through one loop. Updated the story navigation and synchronized the starfield’s vanishing point with the passage. Preserved normal scrolling, pause controls, mobile layouts, and a restrained reduced-motion path.
+- **Requirement(s):** WEB-1, WEB-2, WEB-5, WEB-6, WEB-7
+- **Validation:** Production build and focused browser checks for velocity response, deceleration, reversible portal progress, pause, reduced motion, and mobile layout.
+- **Commit:** Uncommitted.
+
+## 2026-11-07: Moving stars and visible infinity idle motion
+
+- **Who:** Codex (for Jaiom)
+- **What changed:** Replaced the mostly stationary twinkling overlay with continuously moving silver stars at different depths, inspired by the Orizon reference. Increased the silver 8’s float and rotational idle motion while preserving the scroll story. Motion pauses with the existing control, reduced-motion preference, and hidden tabs.
+- **Requirement(s):** WEB-1, WEB-2, WEB-5
+- **Validation:** Production build and focused browser checks for idle motion, pause/resume, reduced motion, and mobile resize.
+- **Commit:** Uncommitted.
+
+## 2026-11-07: Silver infinity landing and app review
+
+- **Who:** Codex (for Jaiom)
+- **What changed:** Added `web/`, a React/Vite review with a starry black-and-silver scroll story. The hero’s 8 becomes a traveling infinity sculpture. Generated the sculpture and starfield through Higgsfield MCP and retained the assets with provenance. Added a separate responsive React Flow dashboard, operation/source inspection, filters, session-local repository drafts, simulated request tracing, and read-only gateway registry loading through a development proxy. Demo connections remain explicitly illustrative; no ingest, repair, or event-stream endpoints are fabricated. Added web setup documentation and recorded the user’s design requirements.
+- **Requirement(s):** WEB-1 to WEB-5, FR-6, FR-10, FR-11, FR-13
+- **Validation:** Production build; desktop/mobile browser checks and interaction verification.
+- **Commit:** Uncommitted (user review requested).
+
 ## 2026-11-07: Backend foundation and security model
 
 - **Who:** Claude (for Aryan)

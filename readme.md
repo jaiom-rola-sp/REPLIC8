@@ -16,3 +16,7 @@ If you use `[[wikilinks]]`, they won't render on GitHub. Prefer standard `[text]
 - [PRD](docs/prd.md): the replic8 product plan.
 - [Requirements](docs/requirements.md): what we're building and its status.
 - [Changelog](docs/changelog.md): what changed and why.
+
+## Website preview
+
+The landing page and app dashboard are in [web/](web/README.md). Run `npm ci` and `npm run dev` from that directory, then open the Local URL printed by Vite. Dashboard data starts in a clearly labeled demo mode.
