@@ -56,10 +56,13 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 
 ## Open questions
 
-See [prd section 10](prd.md#10-open-questions).
+See [prd section 11](prd.md#11-open-questions).
 
 ## Decisions
 
+- **2026-11-07:** Demo legacy languages: Subsidiary B (oilfield maintenance) is written in COBOL, Subsidiary C (logistics/manufacturing) in Fortran. Reason: Aryan's call; both are classic legacy languages. Both have tree-sitter grammars, so both use the `parsed` tier; a `black-box` path for Fortran is a stretch goal. The live rename for self-healing happens in the COBOL system.
+- **2026-11-07:** Nemotron model for generation and healing: `nvidia/nemotron-3.5-super-vl-120b-a12b` via `https://integrate.api.nvidia.com/v1`. Reason: it's the endpoint on our key. Tested live: about 2s per proposal with thinking off; NVIDIA rejects `nvext.guided_json` but accepts `response_format`. It is early access, so keep a fallback model.
+- **2026-11-07:** The model never writes code or commands. It only picks functions and describes their inputs and outputs; replic8 builds each call itself. Reason: in live testing the model put inline Python into the command, which both broke its JSON and meant running model-written code.
 - **2026-11-07:** Demo is a parent company (A, modern) plus two legacy subsidiaries (B oilfield services, C logistics/manufacturing). Replic8 connects legacy to modern and legacy to legacy. Reason: a believable acquisition story that shows both connection types.
 - **2026-11-07:** Gemini Vision is dropped. Only Nemotron is used, reading the legacy codebases. Self-healing is driven by failing tests and code diffs, not screenshots. Reason: the team doesn't need vision, and it saves build time.
 - **2026-11-07:** The live break is renaming a function or field in the legacy code. Reason: scripted, reliable, and rehearsable.

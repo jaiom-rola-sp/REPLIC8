@@ -2,13 +2,41 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: COBOL and Fortran demo legacy systems
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `legacy/b-maintenance-cobol` (COBOL: `GET-REQUEST`, `LIST-OPEN-REQUESTS`) and `legacy/c-inventory-fortran` (Fortran: `check_stock`, `get_shipping_options`) with fixed-width data linked by part ID and site region. Added the runtime image (`backend/runtime/`: GnuCOBOL, gfortran, call shim, sandboxed build), tree-sitter extraction, and per-language runtimes. Live Nemotron picks exactly the four real operations. Recorded "both systems parsed". Added threats T20 to T22 and 14 tests (109 total), including an end-to-end COBOL and Fortran run through the gateway.
+- **Requirement(s):** FR-1, FR-4, FR-10, FR-11
+- **Commit:** this commit
+
+## 2026-11-07: CLAUDE.md rule uses Sandbox.run
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** `CLAUDE.md` rule 6 now says `Sandbox.run` instead of `run_in_sandbox`, to match PRD section 7 and the backend code.
+- **Requirement(s):** FR-4, FR-13
+- **Commit:** this commit
+
+## 2026-11-07: Security interfaces in the PRD
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Added PRD section 7, "Security interfaces", matched to the existing backend: `Sandbox.run`, `SandboxError` (with planned subclasses), `Notifier.notify`, and planned `validate_call` and `trigger_heal`. Renumbered the later PRD sections (Technology choices is now 8, Open questions 11, Risks 12) and fixed the two references to them. Added a `CLAUDE.md` rule to use these interfaces.
+- **Requirement(s):** FR-4, FR-12, FR-13
+- **Commit:** this commit
+
+## 2026-11-07: Nemotron client, prompts, and self-heal generation
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `backend/replic8/nemotron.py` (client), `prompts.py` (secret redaction, injection fencing, source diffs) and `generate.py` (propose operations; repairs that keep each operation's contract). Tested live against `nvidia/nemotron-3.5-super-vl-120b-a12b`: switched to `response_format` with thinking off, and the model no longer supplies commands (replic8 builds them). Recorded decisions: B in COBOL, C in Fortran, the model choice, no model-written code. Added threats T15 to T19 to `docs/security.md` and 22 tests (95 total).
+- **Requirement(s):** FR-2, FR-7, FR-10, FR-11, FR-13
+- **Commit:** not committed yet
+
 ## 2026-11-07: Scroll-speed hyperspace and a journey through the loop
 
 - **Who:** Codex (for Jaiom)
 - **What changed:** Increased background star density and added scroll-velocity acceleration with bounded radial trails, reverse travel, and smooth deceleration. Added a dedicated passage between Discover and Connect: the silver 8 spins, changes depth and scale, and frames a camera move through one loop. Updated the story navigation and synchronized the starfield’s vanishing point with the passage. Preserved normal scrolling, pause controls, mobile layouts, and a restrained reduced-motion path.
 - **Requirement(s):** WEB-1, WEB-2, WEB-5, WEB-6, WEB-7
 - **Validation:** Production build and focused browser checks for velocity response, deceleration, reversible portal progress, pause, reduced motion, and mobile layout.
-- **Commit:** Uncommitted.
+- **Commit:** cfc27f7
 
 ## 2026-11-07: Moving stars and visible infinity idle motion
 
@@ -16,7 +44,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Replaced the mostly stationary twinkling overlay with continuously moving silver stars at different depths, inspired by the Orizon reference. Increased the silver 8’s float and rotational idle motion while preserving the scroll story. Motion pauses with the existing control, reduced-motion preference, and hidden tabs.
 - **Requirement(s):** WEB-1, WEB-2, WEB-5
 - **Validation:** Production build and focused browser checks for idle motion, pause/resume, reduced motion, and mobile resize.
-- **Commit:** Uncommitted.
+- **Commit:** cfc27f7
 
 ## 2026-11-07: Silver infinity landing and app review
 
@@ -24,7 +52,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Added `web/`, a React/Vite review with a starry black-and-silver scroll story. The hero’s 8 becomes a traveling infinity sculpture. Generated the sculpture and starfield through Higgsfield MCP and retained the assets with provenance. Added a separate responsive React Flow dashboard, operation/source inspection, filters, session-local repository drafts, simulated request tracing, and read-only gateway registry loading through a development proxy. Demo connections remain explicitly illustrative; no ingest, repair, or event-stream endpoints are fabricated. Added web setup documentation and recorded the user’s design requirements.
 - **Requirement(s):** WEB-1 to WEB-5, FR-6, FR-10, FR-11, FR-13
 - **Validation:** Production build; desktop/mobile browser checks and interaction verification.
-- **Commit:** Uncommitted (user review requested).
+- **Commit:** cfc27f7
 
 ## 2026-11-07: Backend foundation and security model
 

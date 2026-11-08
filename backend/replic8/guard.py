@@ -7,6 +7,7 @@ declarative JSON proposal. Nothing it writes is executed on the host. This modul
 - for the `parsed` tier, requires each operation to match a symbol tree-sitter
   actually extracted (exact name, file and line),
 - for other tiers, requires the cited file:line to exist in the checkout,
+- never takes a command or code from the model,
 - never lets the model downgrade a write-looking function to `read` (FR-13).
 """
 
@@ -16,7 +17,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
@@ -25,6 +26,8 @@ from .models import Access, Operation, SourceLocation, Tier
 
 MAX_PROPOSAL_BYTES = 200_000
 MAX_OPERATIONS = 20
+SHELLS = {"sh", "bash", "zsh", "dash", "ash", "ksh", "csh", "tcsh", "fish", "busybox", "env",
+          "cmd", "cmd.exe", "powershell", "pwsh", "eval", "xargs"}
 
 WRITE_VERBS = {
     "add", "append", "approve", "assign", "book", "buy", "cancel", "charge", "close", "commit",
@@ -48,7 +51,7 @@ PROPOSAL_SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "additionalProperties": False,
                 "required": ["name", "symbol", "file", "line", "access", "description",
-                             "input_schema", "output_schema", "argv"],
+                             "input_schema", "output_schema"],
                 "properties": {
                     "name": {"type": "string"},
                     "symbol": {"type": "string", "maxLength": 200},
@@ -58,7 +61,6 @@ PROPOSAL_SCHEMA: dict[str, Any] = {
                     "description": {"type": "string", "maxLength": 500},
                     "input_schema": {"type": "object"},
                     "output_schema": {"type": "object"},
-                    "argv": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 32},
                 },
             },
         }
@@ -107,11 +109,13 @@ def validate_proposal(
     tier: Tier,
     repo_root: Path,
     image: str,
+    argv_for: Callable[[str, str], list[str]],
     symbols: list[Symbol] | None = None,
 ) -> tuple[list[Operation], dict[str, str]]:
     """Turn model output into candidate operations. Returns (accepted, rejected-with-reason).
 
-    `image` is chosen by Replic8 per language, never by the model.
+    `image` and the command (`argv_for(symbol, file)`) are chosen by Replic8 per
+    language, never by the model, so the model never writes code that runs.
     Accepted operations are still only candidates: they must pass contract tests
     before the registry will publish them.
     """
@@ -144,6 +148,10 @@ def validate_proposal(
         if not _line_exists(repo_root, source.file, source.line):
             rejected[label] = "source location does not exist"
             continue
+        argv = argv_for(item["symbol"], item["file"])
+        if not argv or Path(argv[0]).name.lower() in SHELLS:
+            rejected[label] = "no safe command for this symbol"
+            continue
         try:
             op = Operation(
                 namespace=namespace,
@@ -154,7 +162,7 @@ def validate_proposal(
                 source=source,
                 input_schema=item["input_schema"],
                 output_schema=item["output_schema"],
-                invocation={"image": image, "argv": item["argv"]},
+                invocation={"image": image, "argv": argv},
             )
         except ValidationError as exc:
             rejected[label] = f"invalid operation: {exc.errors()[0]['msg'][:200]}"
