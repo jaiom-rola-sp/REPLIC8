@@ -1,4 +1,95 @@
-Initial Commit:
+# REPLIC8
+
+Turn old code on GitHub into tools that AI agents can use.
+
+Live site: https://www.replic8.work
+
+## What it does
+
+- Paste a GitHub repo of legacy code.
+- REPLIC8 reads it and finds what it can do.
+- It makes a tested API and MCP tools from that.
+- Agents call the tools. The legacy code runs only in a locked sandbox.
+- If the legacy code changes, REPLIC8 repairs the tools and saves a new version.
+- A dashboard shows every system, tool and link between them.
+
+## What we built
+
+- Import a repo from the dashboard and watch it go live, step by step.
+- One gateway for many systems, with names like `maintenance.get_request`.
+- Same tools over MCP and REST, plus an OpenAPI file.
+- Every tool passes a test against the real code before it is published.
+- Self-repair: renames in the legacy code are fixed, and you can roll back.
+- Read-only: tools that write are turned off.
+- Graph of systems and the data that links them.
+- Connect page with copy-paste setup for agents.
+- Import of modern systems from their OpenAPI file (listed, never called).
+
+## Many repos, one API
+
+- Import each legacy repo as its own system, like `maintenance` or `inventory`.
+- All systems sit behind one gateway: one REST API and one MCP server.
+- Every tool is named `system.tool`, so agents never mix systems up.
+- REPLIC8 links systems when one tool's output is another tool's input, like a `part_id`.
+- The graph shows those links, so you can see how old systems connect.
+- A token only sees the systems you scope it to.
+
+## How we know it works
+
+- Every tool is tried against the real legacy code before it goes live. If it fails, it is not published.
+- Real answers are recorded, and the output rules are learned from them, not guessed.
+- Every call is checked on the way in and on the way out.
+- Each tool points to the exact file and line it came from.
+- Each tool is labeled by how it was found: `parsed`, `inferred` or `black-box`.
+- A repair must give the same recorded answers as before, or it is rejected.
+- Each live version stays pinned to the code it was tested on.
+- Hundreds of automated tests cover the backend and the dashboard.
+
+## Other features
+
+- You can give real IDs at import, so tests hit real records instead of invented ones.
+- Version history with one-click rollback.
+- Live activity feed of imports, repairs and failures.
+- Try any read-only tool from the dashboard and see where its answer came from.
+- Pick how a repo is read: functions, command-line programs, or both.
+- Change checks can run on a timer, and a repair starts on its own when code changes.
+
+## Languages
+
+| Language | How it runs |
+|----------|-------------|
+| COBOL | functions |
+| Fortran | functions |
+| Java | functions |
+| Python | functions, or scripts |
+| C | command-line programs |
+| Pascal | command-line programs |
+| Perl | command-line programs |
+| PHP | command-line programs |
+
+- Other languages can be read, but not run yet.
+
+## Safety
+
+- Legacy code runs in Docker with no network, a read-only disk and tight limits.
+- The AI never writes code. It only fills in a form that REPLIC8 checks.
+- Tokens control who can see which systems.
+
+## Run it
+
+- Backend: see [backend/README.md](backend/README.md).
+- Dashboard: see [web/README.md](web/README.md).
+- Demo systems (COBOL and Java): see [legacy/](legacy/README.md).
+
+## Docs
+
+- [PRD](docs/prd.md): the plan.
+- [Requirements](docs/requirements.md): what we build and its status.
+- [Deep dive](docs/deep-dive.md): how each feature works inside the backend.
+- [Security](docs/security.md): threats and defenses.
+- [Changelog](docs/changelog.md): what changed and why.
+
+---
 
 ## Using this repo with Obsidian
 
@@ -11,12 +102,6 @@ Initial Commit:
 Obsidian's settings live in `.obsidian/`, which is git-ignored, so each person keeps their own layout and plugins.
 
 If you use `[[wikilinks]]`, they won't render on GitHub. Prefer standard `[text](path.md)` links, or turn off **Settings → Files and links → Use [[Wikilinks]]**.
-
-## Project docs
-
-- [PRD](docs/prd.md): the REPLIC8 product plan.
-- [Requirements](docs/requirements.md): what we're building and its status.
-- [Changelog](docs/changelog.md): what changed and why.
 
 ## Website preview
 

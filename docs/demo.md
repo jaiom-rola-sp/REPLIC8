@@ -9,7 +9,7 @@ How to run the REPLIC8 demo on stage, about 4 minutes. Everything here is built 
 - [ ] The VM is running (Azure portal, VM, **Start**) and `curl https://<backend hostname>/health` prints `{"status":"ok"}`.
 - [ ] Load the systems once: `sudo bash /opt/replic8/deploy/vm/onboard-demo.sh`. It prints the four tools: `maintenance.get_request`, `maintenance.list_open_requests`, `inventory.check_stock`, `inventory.get_shipping_options`.
 - [ ] The sandbox image is pinned by digest: `sudo grep SANDBOX_IMAGES /etc/replic8/replic8.env` shows `replic8-legacy-runtime:1@sha256:...` (setup does this after every build).
-- [ ] `REPLIC8_CORS_ORIGINS` is the exact Vercel address, and the dashboard connects from it.
+- [ ] `REPLIC8_CORS_ORIGINS` is `https://www.replic8.work` (the Vercel site), and the dashboard connects from it.
 - [ ] Rehearse the whole script below once, then reset (see the end).
 - [ ] Download the fallback video and have it open on the presenting laptop.
 

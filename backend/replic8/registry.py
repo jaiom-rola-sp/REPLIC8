@@ -57,6 +57,7 @@ class Registry:
         cases: dict[str, list[ContractCase]] | None = None,
         rejected: dict[str, str] | None = None,
         reason: str = "onboarded",
+        mode: str = "auto",
     ) -> WrapperVersion:
         """Save a new version containing only operations whose contract tests passed.
 
@@ -95,6 +96,7 @@ class Registry:
                 rejected=rejected,
                 parent_version=parent,
                 reason=reason,
+                mode=mode,
             )
             _atomic_write(directory / f"v{version_no}.json", version.model_dump_json(indent=2))
             _atomic_write(directory / "current", str(version_no))

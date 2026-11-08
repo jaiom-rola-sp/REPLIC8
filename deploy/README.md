@@ -2,7 +2,7 @@
 
 | Part | Where | Who |
 |------|-------|-----|
-| Frontend (`web/`) | Vercel | Jai |
+| Frontend (`web/`) | Vercel, live at https://www.replic8.work | Jai |
 | Backend (`backend/`): MCP + REST gateway, sandbox, Nemotron | One Azure VM (Azure for Students) | Backend team |
 
 The browser talks to the backend over HTTPS. AI agents talk to the same backend over MCP at `https://<backend hostname>/mcp`.
@@ -62,7 +62,7 @@ sudo nano /etc/replic8/replic8.env
 Set:
 
 - `NVIDIA_API_KEY`: the Nemotron key.
-- `REPLIC8_CORS_ORIGINS`: the Vercel site's exact address, e.g. `https://replic8.vercel.app`. Several are comma-separated. No trailing slash, no `*`.
+- `REPLIC8_CORS_ORIGINS`: the Vercel site's exact address, `https://www.replic8.work`. Several are comma-separated (add `https://replic8.work` too if the bare domain does not redirect to www). No trailing slash, no `*`.
 
 Then restart and check:
 

@@ -219,6 +219,10 @@ def validate_proposal(
 
     accepted: list[Operation] = []
     rejected: dict[str, str] = {}
+    # A repo with both functions and programs shares the cap, so one kind cannot crowd out the other.
+    mixed = any(s.program for s in symbols or []) and any(not s.program for s in symbols or [])
+    share = MAX_OPERATIONS // 2 if mixed else MAX_OPERATIONS
+    taken = {True: 0, False: 0}
     for item in data["operations"]:
         label = f"{namespace}.{item['name']}"
         if tier is Tier.parsed and (item["symbol"], item["file"], item["line"]) not in known:
@@ -226,6 +230,9 @@ def validate_proposal(
             continue
         symbol = by_key.get((item["symbol"], item["file"], item["line"]))
         cli = item.get("cli")
+        if taken[cli is not None] >= share:
+            rejected[label] = "over this kind's share of the operation limit"
+            continue
         if symbol is not None and symbol.program != (cli is not None):
             rejected[label] = ("a program needs a cli form" if symbol.program
                                else "cli is only for programs run from a command line")
@@ -271,6 +278,7 @@ def validate_proposal(
             rejected[label] = "duplicate operation name"
             continue
         accepted.append(op)
+        taken[cli is not None] += 1
         if examples_out is not None:
             examples_out[op.tool] = examples_from(item, op.input_schema)
     return accepted, rejected

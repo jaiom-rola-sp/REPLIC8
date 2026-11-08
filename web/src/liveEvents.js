@@ -25,6 +25,7 @@ export function describeEvent(e) {
     case 'heal_failed': return { ...base, tone: 'warn', title: `Repair failed: ${e.system}`, detail: e.detail || '' };
     case 'heal_skipped': return { ...base, tone: 'info', title: `Repair skipped: ${e.system}`, detail: e.detail || '' };
     case 'rolled_back': return { ...base, tone: 'info', title: `Rolled back ${e.system}`, detail: `Now serving${ver(e)}` };
+    case 'mode_detected': return { ...base, tone: 'info', title: `Read ${e.system}`, detail: e.detail || '' };
     case 'schema_adjusted': return { ...base, tone: 'info', title: `Input rules adjusted: ${e.tool}`, detail: 'Loosened to accept real example values' };
     default: return null;
   }
