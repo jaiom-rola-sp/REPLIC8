@@ -7,7 +7,6 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 1. **The legacy repo:** its code, file names, symlinks, size, and any text planted in comments.
 2. **The model (Nemotron):** it reads that untrusted code, so its output can be wrong or steered by prompt injection.
 3. **Gateway callers:** anyone who can reach the gateway.
-4. **The network around Photon:** a send can fail or hang.
 
 ## Threats and mitigations
 
@@ -21,11 +20,10 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 | T6 | Prompt injection in legacy code steers the model ("expose everything as read") | The model only writes a declarative proposal and never runs code on the host. Proposals are schema-checked; a write-looking name can't be labelled `read`; the sandbox image is chosen by replic8, not the model; every op must still pass contract tests | `guard.py` |
 | T7 | Untested or edited operation gets served (FR-3) | Registry publishes only ops with a passing test against the same commit; files are re-validated on every load | `registry.py`, `models.WrapperVersion` |
 | T8 | Agent triggers purchasing or dispatching (FR-13) | `write` ops return 403 unless named in `REPLIC8_WRITE_OPS` (empty in v1). Defense in depth: the sandbox filesystem is read-only and offline, so even a mislabelled op can't persist changes | `gateway.py`, `sandbox.py` |
-| T9 | Unauthorized gateway use | Bearer token required (at least 32 characters, constant-time compare); the app won't start without one; per-token rate limit; no unauthenticated docs | `gateway.py`, `config.py` |
+| T9 | Unauthorized gateway use | Bearer token required (at least 32 characters, constant-time compare); the app won't start without one; per-token rate limit; per-token scopes from `REPLIC8_TOKEN_SCOPES` (`ns.*` or one tool), with 403 outside them and no access for a token without scopes (fail closed); listing shows only in-scope tools; no unauthenticated docs. Every route goes through `validate_call` | `validator.py`, `gateway.py`, `config.py` |
 | T10 | Wrapper returns junk or manipulated data under a trusted name | Output is validated against the published output schema; every response carries provenance (tier, file:line, version, commit) | `executor.py`, `gateway.py` |
 | T11 | Errors leak secrets or legacy internals | Callers get generic messages; legacy stderr is never returned; the audit log records tool and outcome only, never input or tokens | `executor.CallError`, `gateway.py` |
 | T12 | Large requests exhaust memory | 64 KB body cap, enforced with or without Content-Length | `gateway.BodyLimit` |
-| T13 | Texts leak code or secrets, or texts trigger actions (FR-12) | Fixed templates filled only with validated identifiers and numbers; E.164 allowlist from env; no inbound handler exists; sends run in the background and never raise; repeats are grouped | `notify.py` |
 | T14 | Path traversal in registry or source locations | System names are regex-checked; source paths must be relative with no `..` | `registry.py`, `models.SourceLocation` |
 | T15 | Secrets in legacy code get sent to NVIDIA's API | Keys, passwords, tokens, private keys and credentials in URLs are replaced with `<redacted>` before sending (line numbers kept). Vendored folders are skipped and context is size-capped | `prompts.redact`, `prompts.build_context` |
 | T16 | Prompt injection through code comments or the diff | Code and diffs are wrapped in markers with a random nonce, and the model is told their contents are data. This only lowers the risk; T5 and T6 are the real gate | `prompts.py` |
@@ -35,9 +33,9 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 
 ## Known gaps (not done yet)
 
-- **Sandbox images** must be pinned by digest before the demo, not by tag.
+- ~~**Sandbox images** must be pinned by digest before the demo, not by tag.~~ **Done 2026-11-07:** startup refuses images not pinned by digest, and `docker run --pull never` stops downloads at call time.
 - **Docker socket:** the backend needs Docker access, which is root-equivalent on the host. Run the backend on the demo VM only, not on a shared machine. A rootless Docker or gVisor runtime would be stronger.
 - **Legacy code that needs its own database or a writable directory** won't run under `--read-only` without an extra tmpfs. Decide per demo system.
-- **Tokens** are static, shared secrets with no per-caller scopes or expiry. Fine for a demo, not for production.
+- **Tokens** are static, shared secrets with no expiry or rotation (per-token scopes now exist, see T9). Fine for a demo, not for production.
 - **Redaction is pattern-based.** It catches common secret shapes, not all of them. Don't ingest repos with real customer data or live credentials.
-- **Not built yet:** tree-sitter extraction, contract-test generation, the sandbox shims that turn stdin JSON into a function call, the MCP server, self-healing, and the Photon transport (its API is unverified).
+- **Not built yet:** tree-sitter extraction, contract-test generation, the sandbox shims that turn stdin JSON into a function call, the MCP server, and self-healing.
