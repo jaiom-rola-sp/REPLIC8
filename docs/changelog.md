@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Shared validate_call with per-token scopes
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Moved the gateway's auth, rate limit, published-tool, write-blocking, size and input-schema checks into `Validator.validate_call(token, tool_name, args)` in `backend/replic8/validator.py`; every gateway route except `/health` calls it, so a future MCP server can reuse it. Added per-token scopes (`REPLIC8_TOKEN_SCOPES`, `ns.*` or one tool): out-of-scope calls get 403, a token with no scopes can call nothing, and listing shows only in-scope tools. Updated PRD section 7 and the backend README. Added 10 tests.
+- **Requirement(s):** FR-13
+- **Commit:** this commit
+
 ## 2026-11-07: Drop Photon, notifications are log-only
 
 - **Who:** Krish Thapa (with Claude)

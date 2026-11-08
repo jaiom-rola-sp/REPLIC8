@@ -1,23 +1,19 @@
 """One gateway for every published operation (FR-5), read-only by default (FR-13).
 
 Security posture:
-- Every route except /health needs a bearer token from REPLIC8_GATEWAY_TOKENS.
-  The app refuses to start without one (fail closed).
-- Write operations return 403 unless listed in REPLIC8_WRITE_OPS.
-- Request bodies are size-capped; input and output are checked against the
-  published JSON schemas.
+- Every route except /health goes through `Validator.validate_call` (validator.py):
+  bearer token, rate limit, per-token scopes, published tool, write blocking,
+  input size and schema. The app refuses to start without a token (fail closed).
+- Request bodies are also size-capped before parsing (BodyLimit); output is
+  checked against the published schema by the executor.
 - Errors never echo legacy stderr, stack traces, or caller input.
-- Per-token rate limit, and an audit log line per call (tool and outcome only).
+- An audit log line per call (token id, tool and outcome only).
 - No CORS, and no unauthenticated docs pages.
 """
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
-import threading
-import time
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -25,13 +21,14 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from .config import TOOL_NAME, Settings
+from .config import Settings
 from .executor import CallError, Executor
 from .models import Access
 from .registry import Registry
+from .validator import MAX_ARGS_BYTES, Denied, Validator
 
 audit = logging.getLogger("replic8.audit")
-MAX_BODY = 64_000
+MAX_BODY = MAX_ARGS_BYTES
 
 
 class CallRequest(BaseModel):
@@ -65,51 +62,21 @@ class BodyLimit:
         return await self.app(scope, limited_receive, send)
 
 
-class RateLimiter:
-    def __init__(self, per_minute: int):
-        self.capacity = float(per_minute)
-        self.rate = per_minute / 60.0
-        self._buckets: dict[str, tuple[float, float]] = {}
-        self._lock = threading.Lock()
-
-    def allow(self, key: str) -> bool:
-        now = time.monotonic()
-        with self._lock:
-            tokens, last = self._buckets.get(key, (self.capacity, now))
-            tokens = min(self.capacity, tokens + (now - last) * self.rate)
-            if tokens < 1:
-                self._buckets[key] = (tokens, now)
-                return False
-            self._buckets[key] = (tokens - 1, now)
-            return True
-
-
-def _token_id(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()[:12]
-
-
 def create_app(settings: Settings, registry: Registry, executor: Executor) -> FastAPI:
-    if not settings.gateway_tokens:
-        raise RuntimeError("REPLIC8_GATEWAY_TOKENS is empty; refusing to start an open gateway")
-    settings.validate()
+    validator = Validator(settings, registry)  # refuses to start without tokens
 
     app = FastAPI(title="replic8 gateway", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(BodyLimit, limit=MAX_BODY)
     bearer = HTTPBearer(auto_error=False)
-    limiter = RateLimiter(settings.rate_limit_per_minute)
 
-    def caller(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
-        supplied = creds.credentials if creds and creds.scheme.lower() == "bearer" else ""
-        # Compare against every token so timing doesn't reveal which one matched.
-        match = False
-        for token in settings.gateway_tokens:
-            match |= hmac.compare_digest(supplied.encode(), token.encode())
-        if not match:
-            raise HTTPException(401, "missing or invalid token", headers={"WWW-Authenticate": "Bearer"})
-        who = _token_id(supplied)
-        if not limiter.allow(who):
-            raise HTTPException(429, "rate limit exceeded")
-        return who
+    def bearer_token(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
+        return creds.credentials if creds and creds.scheme.lower() == "bearer" else ""
+
+    def check(token: str, tool: str | None, args: Any):
+        try:
+            return validator.validate_call(token, tool, args)
+        except Denied as exc:
+            raise HTTPException(exc.status, exc.message, headers=exc.headers) from None
 
     @app.exception_handler(Exception)
     async def _hide_internals(request: Request, exc: Exception):
@@ -121,9 +88,12 @@ def create_app(settings: Settings, registry: Registry, executor: Executor) -> Fa
         return {"status": "ok"}
 
     @app.get("/v1/operations")
-    def list_operations(who: str = Depends(caller)) -> dict[str, Any]:
+    def list_operations(token: str = Depends(bearer_token)) -> dict[str, Any]:
+        who = check(token, None, None).who
         ops = []
         for tool, (op, version) in sorted(registry.live_operations().items()):
+            if not validator.allowed(who, tool):
+                continue
             ops.append({
                 "tool": tool,
                 "description": op.description,
@@ -139,17 +109,9 @@ def create_app(settings: Settings, registry: Registry, executor: Executor) -> Fa
         return {"operations": ops}
 
     @app.post("/v1/operations/{tool}")
-    def call_operation(tool: str, body: CallRequest, who: str = Depends(caller)) -> dict[str, Any]:
-        if not TOOL_NAME.match(tool):
-            raise HTTPException(404, "unknown operation")
-        live = registry.live_operations().get(tool)
-        if live is None:
-            audit.info("call who=%s tool=%s outcome=unknown", who, tool)
-            raise HTTPException(404, "unknown operation")
-        op, version = live
-        if op.access is Access.write and tool not in settings.write_allowlist:
-            audit.warning("call who=%s tool=%s outcome=write_blocked", who, tool)
-            raise HTTPException(403, "write operations are disabled")
+    def call_operation(tool: str, body: CallRequest, token: str = Depends(bearer_token)) -> dict[str, Any]:
+        approved = check(token, tool, body.input)
+        who, op, version = approved.who, approved.op, approved.version
         try:
             result = executor.call(op, version, body.input)
         except CallError as exc:

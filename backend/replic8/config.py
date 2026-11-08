@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from dataclasses import dataclass, field
@@ -13,6 +14,23 @@ TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,63}$")
 # A sandbox image must be pinned by digest (name[:tag]@sha256:<64 hex>). A tag alone can be
 # moved to point at a different image; a digest can't.
 PINNED_IMAGE = re.compile(r"^[a-z0-9][a-z0-9._/-]{0,127}(:[A-Za-z0-9._-]{1,128})?@sha256:[0-9a-f]{64}$")
+# A scope is a whole namespace (`maintenance.*`) or one tool (`maintenance.get_request`).
+SCOPE = re.compile(r"^[a-z][a-z0-9_]{0,31}\.(\*|[a-z][a-z0-9_]{0,63})$")
+TOKEN_ID = re.compile(r"^[0-9a-f]{12}$")
+
+
+def token_id(token: str) -> str:
+    """Short, non-secret ID for a gateway token. Used in audit logs and REPLIC8_TOKEN_SCOPES."""
+    return hashlib.sha256(token.encode()).hexdigest()[:12]
+
+
+def _scopes(name: str) -> dict[str, frozenset[str]]:
+    """Parse `id=ns.*|ns.tool,id2=ns2.*` into {id: {scopes}}."""
+    out: dict[str, frozenset[str]] = {}
+    for entry in _csv(name):
+        tid, _, scopes = entry.partition("=")
+        out[tid.strip()] = frozenset(s.strip() for s in scopes.split("|") if s.strip())
+    return out
 
 
 class ConfigError(ValueError):
@@ -37,6 +55,9 @@ class SandboxLimits:
 class Settings:
     data_dir: Path
     gateway_tokens: frozenset[str] = frozenset()
+    # Which tools each token may call, keyed by token_id(token). A token with no entry
+    # can call nothing (fail closed).
+    token_scopes: dict[str, frozenset[str]] = field(default_factory=dict)
     # Write operations stay disabled unless named here (FR-13). Empty in v1.
     write_allowlist: frozenset[str] = frozenset()
     # Docker images the sandbox may run. Each must be pinned by digest (see PINNED_IMAGE).
@@ -53,6 +74,7 @@ class Settings:
         settings = cls(
             data_dir=Path(os.environ.get("REPLIC8_DATA_DIR", "./data")).resolve(),
             gateway_tokens=frozenset(_csv("REPLIC8_GATEWAY_TOKENS")),
+            token_scopes=_scopes("REPLIC8_TOKEN_SCOPES"),
             write_allowlist=frozenset(_csv("REPLIC8_WRITE_OPS")),
             sandbox_images=frozenset(_csv("REPLIC8_SANDBOX_IMAGES")),
             notify_numbers=frozenset(_csv("REPLIC8_NOTIFY_NUMBERS")),
@@ -64,6 +86,13 @@ class Settings:
         for token in self.gateway_tokens:
             if len(token) < MIN_TOKEN_LENGTH:
                 raise ConfigError(f"gateway tokens must be at least {MIN_TOKEN_LENGTH} characters")
+        known = {token_id(t) for t in self.gateway_tokens}
+        for tid, scopes in self.token_scopes.items():
+            if not TOKEN_ID.match(tid) or tid not in known:
+                raise ConfigError(f"REPLIC8_TOKEN_SCOPES names an unknown token id: {tid!r}")
+            for scope in scopes:
+                if not SCOPE.match(scope):
+                    raise ConfigError(f"invalid scope in REPLIC8_TOKEN_SCOPES (use ns.* or ns.tool): {scope!r}")
         for tool in self.write_allowlist:
             if not TOOL_NAME.match(tool):
                 raise ConfigError(f"invalid tool name in REPLIC8_WRITE_OPS: {tool!r}")

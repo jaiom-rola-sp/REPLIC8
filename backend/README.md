@@ -14,6 +14,7 @@ Python + FastAPI. See [docs/prd.md](../docs/prd.md) for the plan and [docs/secur
 | `executor.py` | Calls an operation in the sandbox; checks input and output schemas | FR-3, FR-5 |
 | `registry.py` | Versioned wrappers; publishes only tested operations; rollback | FR-3, FR-8 |
 | `gateway.py` | One authenticated, read-only-by-default REST gateway | FR-5, FR-13 |
+| `validator.py` | `Validator.validate_call`: the one check every gateway route (and a future MCP server) runs | FR-5, FR-13 |
 | `nemotron.py` | Nemotron client (OpenAI-compatible API): retries, timeouts, key safety | FR-2, FR-7 |
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
@@ -34,6 +35,7 @@ pytest -q
 |----------|---------|
 | `REPLIC8_DATA_DIR` | Where clones and the registry live (default `./data`, git-ignored) |
 | `REPLIC8_GATEWAY_TOKENS` | Comma-separated bearer tokens, at least 32 characters each. Required. |
+| `REPLIC8_TOKEN_SCOPES` | Which tools each token may call: `<token id>=maintenance.*\|inventory.get_part,<token id>=...`. The token id is the first 12 hex characters of the token's SHA-256 (shown in audit logs). A token with no entry can call nothing. |
 | `REPLIC8_WRITE_OPS` | Write tools to allow, e.g. `inventory.reserve_part`. Leave empty in v1. |
 | `REPLIC8_SANDBOX_IMAGES` | Docker images the sandbox may run. Each must be pinned by digest (`name@sha256:...`) or startup fails. Images are never pulled at call time, so `docker pull` them first. |
 | `REPLIC8_NOTIFY_NUMBERS` | E.164 numbers that get status texts |

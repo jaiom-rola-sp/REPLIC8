@@ -3,7 +3,7 @@ import logging
 import pytest
 from fastapi.testclient import TestClient
 
-from replic8.config import Settings
+from replic8.config import Settings, token_id
 from replic8.executor import CallError, validate_input
 from replic8.gateway import create_app
 from replic8.registry import Registry
@@ -11,6 +11,7 @@ from replic8.registry import Registry
 from conftest import COMMIT, TOKEN, make_op, passed
 
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
+SCOPES = {token_id(TOKEN): frozenset({"maintenance.*"})}
 
 
 class FakeExecutor:
@@ -35,7 +36,8 @@ def setup(data_dir):
         [make_op("get_request"), make_op("delete_request", access="write")],
         {"maintenance.get_request": passed(), "maintenance.delete_request": passed()},
     )
-    settings = Settings(data_dir=data_dir, gateway_tokens=frozenset({TOKEN}), rate_limit_per_minute=5)
+    settings = Settings(data_dir=data_dir, gateway_tokens=frozenset({TOKEN}), token_scopes=SCOPES,
+                        rate_limit_per_minute=5)
     executor = FakeExecutor()
     return TestClient(create_app(settings, reg, executor)), executor
 
@@ -111,7 +113,7 @@ def test_legacy_errors_are_not_leaked(data_dir):
     reg = Registry(data_dir)
     reg.publish("maintenance", "https://github.com/acme/legacy.git", COMMIT, [make_op()],
                 {"maintenance.get_request": passed()})
-    settings = Settings(data_dir=data_dir, gateway_tokens=frozenset({TOKEN}))
+    settings = Settings(data_dir=data_dir, gateway_tokens=frozenset({TOKEN}), token_scopes=SCOPES)
     client = TestClient(create_app(settings, reg, FakeExecutor(error=RuntimeError("DB password=hunter2"))),
                         raise_server_exceptions=False)
     resp = client.post("/v1/operations/maintenance.get_request", json={"input": {"id": "1"}}, headers=AUTH)
