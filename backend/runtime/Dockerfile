@@ -1,4 +1,4 @@
-# REPLIC8 legacy runtime: COBOL, Fortran and Java compilers plus the call shim.
+# REPLIC8 legacy runtime: COBOL, Fortran, Java, C and Pascal compilers, Python, Perl and PHP interpreters, and the call shim.
 # Build: docker build -t replic8-legacy-runtime:1 backend/runtime
 # Pin the base image by digest before the demo (docs/security.md, known gaps).
 # Behind an HTTPS-only proxy (like Claude cloud sessions), apt needs https sources
@@ -6,7 +6,7 @@
 FROM ubuntu:24.04
 
 RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnucobol3 gfortran openjdk-17-jdk-headless python3 \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnucobol3 gfortran openjdk-17-jdk-headless gcc libc6-dev fp-compiler php-cli perl python3 \
  && rm -rf /var/lib/apt/lists/*
 
 COPY shim.py build.py /replic8/

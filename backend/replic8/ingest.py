@@ -27,7 +27,7 @@ LANGUAGES = {
     ".py": "python", ".js": "javascript", ".ts": "typescript", ".java": "java",
     ".c": "c", ".h": "c", ".cpp": "cpp", ".cs": "csharp", ".go": "go", ".rb": "ruby",
     ".php": "php", ".rs": "rust", ".kt": "kotlin", ".swift": "swift", ".scala": "scala",
-    ".pl": "perl", ".sh": "bash", ".lua": "lua", ".r": "r",
+    ".pl": "perl", ".pm": "perl", ".pp": "pascal", ".lpr": "pascal", ".sh": "bash", ".lua": "lua", ".r": "r",
     ".cbl": "cobol", ".cob": "cobol", ".cpy": "cobol", ".f": "fortran", ".f90": "fortran",
     ".for": "fortran", ".pas": "pascal", ".bas": "basic", ".vb": "vbnet", ".adb": "ada",
     ".rpg": "rpg", ".pli": "pli", ".asm": "assembly", ".sql": "sql",

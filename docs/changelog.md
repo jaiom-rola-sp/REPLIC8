@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: More languages, step 1: the sandbox image and build step
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** The runtime image now also has gcc, Free Pascal, PHP and Perl (Python was already there); it grew from 988 MB to 1.16 GB. `backend/runtime/build.py` compiles C (all `.c` files together when exactly one has `main()`, otherwise each program alone, with `-I` for header folders) and Pascal programs, and syntax-checks every Python, Perl and PHP file so a broken script fails the build instead of the first call. `runtimes.py` registers the five languages, and `ingest.py` recognises `.pm`, `.pp` and `.lpr`. New Docker tests (`tests/test_languages_build.py`, with tiny fixtures under `tests/fixtures/langs/`) build and run a two-file C program and a Pascal program, accept three valid scripts, and reject three broken ones. One existing test used a Python repo as its "unsupported language" example and now uses Ruby. Python, Perl, PHP, C and Pascal repos now pass "Detect" and "Build", then stop at "Find the functions" until B2 to B4 exist.
+- **Requirement(s):** FR-11, FR-14
+- **Validation:** 172 backend tests pass (162 before plus 10 new; 6 skipped need an extra image). Not tested: real third-party C, Pascal, Perl or PHP projects; old dialects (K&R C, Turbo Pascal, PHP 5 code on PHP 8); a deploy on the Azure VM (the deploy script builds the same Dockerfile, but the five grammars still have to be added to its download list in B2).
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-07: Connect screen and Try it
 
 - **Who:** Claude (for Jaiom)

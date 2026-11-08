@@ -133,7 +133,7 @@ Everyone must use these functions.
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
 | Hosting | Vercel (frontend) and one Azure Ubuntu 24.04 VM with Docker and Caddy (backend) | Simplest for a demo; Azure for Students gives a $100 credit with no card | **Decided: Azure only** (Jai, 2026-11-07; Vultr, DigitalOcean and AWS are not used). The hosting guide and setup are in `deploy/README.md` and `deploy/vm/` (Aryan, 2026-11-08): a Standard_B2s VM (2 vCPU / 4 GB; the free 1 GB B1S size is too small for compiling COBOL and Java), ports 22 (from your IP), 80 and 443 open, and the VM's free Azure DNS name (`<label>.<region>.cloudapp.azure.com`) as the HTTPS hostname for Caddy. `deploy/vm/setup.sh` is plain Ubuntu 24.04. Student subscriptions can limit regions and VM sizes (to verify when creating the VM). Fallback: laptop plus a free Cloudflare quick tunnel. |
-| Sandbox languages | COBOL, Fortran, Java today; adding C, Pascal, Python 3, Perl, PHP | "Read any, run what we can" (F1) | **Decided 2026-11-07**; image size grows (the current image is about 1 GB) |
+| Sandbox languages | COBOL, Fortran, Java, plus (built 2026-11-07, B1) C and Pascal compilers and Python 3, Perl and PHP interpreters in the one image | "Read any, run what we can" (F1) | **Decided 2026-11-07.** The image is 1.16 GB (it was 988 MB). Those five languages are built and syntax-checked; finding and calling their functions is still to build (B2 to B4) |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning | **Dropped 2026-11-08.**
 
 ## 9. Anti-hallucination rules (for humans and AIs)
@@ -187,5 +187,5 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - Generated wrappers can be wrong in subtle ways, which is why tests gate publishing.
 - 24 hours is tight. Cut F4 first, then extra systems.
 - Model API outages or rate limits during the demo. Keep a recorded fallback.
-- Each new language and the command-line wrapper widen what runs in the sandbox and grow the image. Every new runtime needs its own contract tests and a pinned image, and the model must stay declarative (it fills in forms; REPLIC8 builds the commands).
+- `perl -c` runs a script's BEGIN blocks and `use` lines, so even the build step executes repo code; it runs in the sandbox like everything else, but it is why the build must stay offline and read-only. Each new language and the command-line wrapper widen what runs in the sandbox and grow the image. Every new runtime needs its own contract tests and a pinned image, and the model must stay declarative (it fills in forms; REPLIC8 builds the commands).
 - The Azure for Students credit needs a valid school email, expires after a year, and can limit regions and VM sizes. Keep the laptop plus tunnel fallback ready.

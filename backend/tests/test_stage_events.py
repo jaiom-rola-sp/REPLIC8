@@ -1,5 +1,7 @@
 """Onboarding reports which step it is on, so the dashboard can show where an import stopped.
 
+The "no supported language" case uses Ruby: Python, Perl, PHP, C and Pascal are supported runtimes now.
+
 No Docker needed: the imports below stop before the sandbox is used.
 """
 
@@ -16,8 +18,8 @@ from replic8.sandbox import Sandbox
 @pytest.fixture
 def world(tmp_path):
     local = tmp_path / "local"
-    (local / "python-only").mkdir(parents=True)
-    (local / "python-only" / "app.py").write_text("print('hi')\n")
+    (local / "ruby-only").mkdir(parents=True)
+    (local / "ruby-only" / "app.rb").write_text("puts 'hi'\n")
     data = tmp_path / "data"
     settings = Settings(data_dir=data, local_repo_root=local)
     sandbox = Sandbox(data / "repos", frozenset(), SandboxLimits(), builds_root=data / "builds")
@@ -28,7 +30,7 @@ def world(tmp_path):
 
 def _run(pipeline, events):
     with pytest.raises(PipelineError) as err:
-        pipeline.onboard("demo", "local://python-only")
+        pipeline.onboard("demo", "local://ruby-only")
     kinds = [(e["kind"], e["detail"]) for e in events.since(0, 50)]
     return str(err.value), kinds
 

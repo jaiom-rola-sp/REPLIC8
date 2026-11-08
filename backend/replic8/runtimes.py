@@ -29,6 +29,11 @@ RUNTIMES = {
     "cobol": Runtime("cobol", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
     "fortran": Runtime("fortran", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
     "java": Runtime("java", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
+    "c": Runtime("c", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
+    "pascal": Runtime("pascal", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
+    "python": Runtime("python", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
+    "perl": Runtime("perl", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
+    "php": Runtime("php", LEGACY_IMAGE, ("python3", "/replic8/build.py")),
 }
 
 

@@ -41,7 +41,7 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
 | `extract.py` | tree-sitter symbols for COBOL paragraphs, Java methods and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
-| `runtimes.py` | Per-language image, build command, and call command (never from the model) | FR-4, FR-11 |
+| `runtimes.py` | Per-language image, build command, and call command (never from the model). COBOL, Fortran, Java, C, Pascal, Python, Perl and PHP build; only the first three can be called so far | FR-4, FR-11, FR-14 |
 
 ## Run it
 
