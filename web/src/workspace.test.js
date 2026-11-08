@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkWorkspaceToken, createWorkspace, describeWorkspace, normalizeGateway, workspaceLabel } from './workspace.js';
+import { checkWorkspaceToken, createWorkspace, defaultGateway, describeWorkspace, normalizeGateway, workspaceLabel } from './workspace.js';
 
 const TOKEN = 'r8w_' + 'A'.repeat(43);
 
@@ -45,4 +45,10 @@ test('describing a workspace tolerates older gateways', async () => {
   assert.deepEqual(await describeWorkspace('https://g', TOKEN, reply(200, { kind: 'workspace', id: 'a1' })), { kind: 'workspace', id: 'a1' });
   assert.equal(await describeWorkspace('https://g', TOKEN, reply(404, {})), null);
   assert.equal(await describeWorkspace('https://g', TOKEN, async () => { throw new Error('down'); }), null);
+});
+
+test('the gateway address can be set when the site is built', () => {
+  assert.equal(defaultGateway({}), '/gateway');
+  assert.equal(defaultGateway({ VITE_REPLIC8_GATEWAY: ' https://replic8.tail1.ts.net/ ' }), 'https://replic8.tail1.ts.net');
+  assert.equal(defaultGateway({ VITE_REPLIC8_GATEWAY: 'not a url' }), '/gateway');
 });

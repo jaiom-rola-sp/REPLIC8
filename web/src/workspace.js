@@ -14,6 +14,14 @@ export function normalizeGateway(address) {
   return parsed.href.replace(/\/+$/, '');
 }
 
+// The address the dashboard starts with: VITE_REPLIC8_GATEWAY when the site is built with it (e.g. on Vercel),
+// otherwise the dev proxy "/gateway". It is an address, not a secret.
+export function defaultGateway(env = {}) {
+  const value = (env.VITE_REPLIC8_GATEWAY || '').trim();
+  if (!value) return '/gateway';
+  try { return normalizeGateway(value); } catch { return '/gateway'; }
+}
+
 export function checkWorkspaceToken(token) {
   return WORKSPACE_TOKEN.test((token || '').trim())
     ? ''

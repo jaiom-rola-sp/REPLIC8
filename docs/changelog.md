@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Workspace token on screen; gateway address filled in
+
+- **Who:** Claude (for Aryan)
+- **What changed:** While a workspace is open, its dialog shows the workspace token (hidden until **Show**) with **Copy**. **Leave workspace** first shows the token in full and asks you to save it, with **Stay in this workspace** to go back. The gateway address field starts with `VITE_REPLIC8_GATEWAY` when the site is built with it (set it in Vercel), otherwise `/gateway`. New `web/.env.example`; `deploy/README.md` says where to set it. The admin token is never shown or stored.
+- **Requirement(s):** WEB-14, FR-16
+- **Validation:** 42 web tests pass (1 new) and the site builds. Browser run against the real backend: the address was filled in from the build setting, the token was masked, then shown and copied correctly, leaving asked to save it first and then went blank.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Workspaces: start blank, leave, come back with a token
 
 - **Who:** Claude (for Aryan)
@@ -9,7 +17,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Requirement(s):** FR-16, WEB-14
 - **Validation:** 265 backend tests pass, 8 new in `test_workspaces.py` (admin-only creation, hashed tokens, isolation over REST and MCP, deleted tokens refused, activity log reload, and a Docker run: import COBOL into a workspace, restart, reopen, call returns PMP-2210). 41 web tests pass, 6 new. Browser run against the real stack with Nemotron: create, import, leave (blank), restart backend, reopen with the token (2 operations, 6 activity rows, check works without asking for an admin token); a wrong token is refused.
 - **Open:** One of three live imports in testing failed its contract tests (the model's proposal); importing again worked.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `053a528`
 
 ## 2026-11-08: GitHub imports work on Windows
 

@@ -10,7 +10,7 @@ import TryIt from './TryIt.jsx';
 import { describeEvent, needsRefresh } from './liveEvents.js';
 import { graphData } from './graphLayout.js';
 import WorkspaceAccess, { BlankWorkspace } from './WorkspaceAccess.jsx';
-import { describeWorkspace, normalizeGateway, workspaceLabel } from './workspace.js';
+import { defaultGateway, describeWorkspace, normalizeGateway, workspaceLabel } from './workspace.js';
 
 const TONE_ICON = { ok: CheckCheck, warn: AlertTriangle, work: Wrench, info: Activity };
 const PAGE = 50; // rows or buttons shown at a time in long lists
@@ -84,7 +84,7 @@ export default function Dashboard({ onBack }) {
   const [opLimit, setOpLimit] = useState(PAGE);
   const [connectionError, setConnectionError] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [gateway, setGateway] = useState(() => sessionRead('replic8.gateway', '/gateway'));
+  const [gateway, setGateway] = useState(() => sessionRead('replic8.gateway', defaultGateway(import.meta.env)));
   const [token, setToken] = useState(() => sessionRead('replic8.token', ''));
   const [copied, setCopied] = useState(false);
   const [adminToken, setAdminToken] = useState(''); // memory only, never stored
@@ -298,7 +298,7 @@ export default function Dashboard({ onBack }) {
     {modal && <div className="dash-overlay dash-overlay--center" onMouseDown={e => { if (e.target === e.currentTarget) setModal(null); }}><section className="dash-modal" role="dialog" aria-modal="true" aria-labelledby="dash-modal-title"><div className="dash-modal-top"><span className="dash-section-eyebrow">{modal === 'add' ? 'EXPAND YOUR ORBIT' : modal === 'settings' ? 'WORKSPACE SETTINGS' : 'YOUR WORKSPACE'}</span><button className="dash-icon-button" onClick={() => setModal(null)} aria-label="Close dialog"><X size={18} /></button></div>
       {modal === 'add' && <AddSystem base={sessionRead('replic8.gateway', gateway.trim().replace(/\/$/, ''))} token={token} adminToken={ownerToken} setAdminToken={setAdminToken} live={isLive} onOpenSettings={() => setModal('workspace')} onPublished={refreshOperations} onClose={() => { setModal(null); setView('systems'); }} />}
       {modal === 'settings' && <><div className="dash-modal-symbol"><Network size={27} strokeWidth={1.3} /></div><h2 id="dash-modal-title">Connect your gateway.</h2><p>Read your published operation registry from an existing REPLIC8 backend. Your token stays in this browser session.</p><form onSubmit={connectGateway}><label>Gateway address<input required value={gateway} onChange={e => setGateway(e.target.value)} placeholder="/gateway" spellCheck={false} /></label><label>Gateway access token<input type="password" required value={token} onChange={e => setToken(e.target.value)} placeholder="Your bearer token" autoComplete="off" /></label>{connectionError && <p className="dash-form-error" role="alert">{connectionError}</p>}<div className="dash-form-note"><ShieldCheck size={15} /><span>This connects read-only registry data. Ingest, repair, and history require additional backend endpoints.</span></div><button type="submit" className="dash-primary-button" disabled={connecting}>{connecting ? 'Checking gateway…' : 'Connect gateway'}<ArrowRight size={15} /></button>{isLive && <button className="dash-quiet-button dash-disconnect" type="button" onClick={leaveWorkspace}>Disconnect</button>}</form></>}
-      {modal?.startsWith('workspace') && <WorkspaceAccess key={modal} initialTab={modal === 'workspace-new' ? 'new' : 'open'} gateway={gateway} setGateway={setGateway} isLive={isLive} info={wsInfo} connecting={connecting} error={connectionError} onOpen={connectWith} onLeave={leaveWorkspace} />}
+      {modal?.startsWith('workspace') && <WorkspaceAccess key={modal} initialTab={modal === 'workspace-new' ? 'new' : 'open'} gateway={gateway} setGateway={setGateway} isLive={isLive} info={wsInfo} token={token} connecting={connecting} error={connectionError} onOpen={connectWith} onLeave={leaveWorkspace} />}
     </section></div>}
   </div>;
 }

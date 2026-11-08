@@ -48,7 +48,7 @@ REPLIC8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 - **WEB-11:** A **Connect** screen in the sidebar: the gateway address and copy-paste setup for an agent (Claude Code, a generic MCP config, curl). The token is a placeholder; no "copy with my token". **Built 2026-11-07.**
 - **WEB-12:** **Try it** on each operation: fill in inputs from the schema, run a live read-only call, show the result and its provenance. **Built 2026-11-07.**
 - **WEB-13:** The Established system import tab works (FR-15), with an optional API file path and a **This is the parent company** checkbox; the graph shows established systems above REPLIC8, the parent with a line into it. The Extension tab is removed. **Built 2026-11-07.**
-- **WEB-14:** The dashboard opens blank, with **Start a new workspace** (gateway address, admin token, optional name; the new token is shown once with a copy button and an "I've saved it" check) and **Open a workspace** (gateway address and workspace token). **Leave workspace** returns to the blank screen. The example systems and simulated activity are removed. **Built 2026-11-08.**
+- **WEB-14:** The dashboard opens blank, with **Start a new workspace** (gateway address, admin token, optional name; the new token is shown once with a copy button and an "I've saved it" check) and **Open a workspace** (gateway address and workspace token). **Leave workspace** returns to the blank screen, after showing the token once more to save. While a workspace is open its token can be shown (hidden until **Show**) and copied. The gateway address is filled in from `VITE_REPLIC8_GATEWAY` when the site is built with it. The example systems and simulated activity are removed. **Built 2026-11-08.**
 
 ## Non-functional requirements
 
