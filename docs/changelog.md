@@ -24,6 +24,12 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Recorded the plan decisions in requirements and the PRD: the command-line wrapper may turn a caller's value into its own argument with guards (narrows the "caller input never becomes an argument" rule; Krish to review), Python gets a function caller now while Perl and PHP go through the wrapper, one sandbox image, and the order (A then B). FR-14 reworded to match. Checked that tree-sitter grammars for C, Pascal, Python, Perl and PHP exist and parse real code, and that `claude mcp add --transport http <name> <url> --header "Authorization: Bearer ..."` is the right Claude Code syntax.
 - **Requirement(s):** FR-14
 - **Commit:** not committed yet (awaiting approval)
+## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
+
+- **Who:** Aryan Mandapati
+- **What changed:** Added `docs/demo.md`: pre-show checklist (health, seeding with `onboard-demo.sh`, pinned image, CORS), a timed 4-minute talk track using only built features (dashboard, MCP agent, live COBOL break and repair, roll back), what to do if something fails, and the reset steps. Recorded an 80-second captioned fallback video of that flow against the real stack (shared with the team, not committed). `deploy/README.md`: dropped the remaining Vultr/DigitalOcean note and added the laptop-plus-Cloudflare-quick-tunnel fallback steps. `backend/.env.example`: added `REPLIC8_TOKEN_SCOPES` (quoted, with how to get the token id) and `REPLIC8_LOCAL_REPO_ROOT`. `docs/security.md`: refreshed the known gaps (scopes vs dashboard imports, browser token storage, tunnel exposure, data at rest) and listed the gaps closed since.
+- **Requirement(s):** FR-10, NFR Security
+- **Commit:** this commit
 
 ## 2026-11-07: Hosting is Azure only
 
