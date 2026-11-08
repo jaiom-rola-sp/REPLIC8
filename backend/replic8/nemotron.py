@@ -46,7 +46,7 @@ class ModelConfig:
     structured: bool = True
     thinking: bool = False
     timeout_s: float = 120.0
-    max_tokens: int = 4096
+    max_tokens: int = 16384  # 4096 cut off the proposal for systems with ~9 operations
     max_retries: int = 3
 
     @classmethod
