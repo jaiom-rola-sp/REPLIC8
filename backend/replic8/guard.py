@@ -61,6 +61,7 @@ PROPOSAL_SCHEMA: dict[str, Any] = {
                     "description": {"type": "string", "maxLength": 500},
                     "input_schema": {"type": "object"},
                     "output_schema": {"type": "object"},
+                    "examples": {"type": "array", "maxItems": 3, "items": {"type": "object"}},
                 },
             },
         }
@@ -102,6 +103,16 @@ def _line_exists(repo_root: Path, file: str, line: int) -> bool:
     return False
 
 
+def examples_from(item: dict[str, Any], input_schema: dict[str, Any]) -> list[dict[str, Any]]:
+    """Model-suggested example inputs. Data only; kept only if they fit the input schema."""
+    validator = Draft202012Validator(input_schema)
+    kept = []
+    for example in item.get("examples", []):
+        if not list(validator.iter_errors(example)) and example not in kept:
+            kept.append(example)
+    return kept
+
+
 def validate_proposal(
     raw: str,
     *,
@@ -111,10 +122,11 @@ def validate_proposal(
     image: str,
     argv_for: Callable[[str, str], list[str]],
     symbols: list[Symbol] | None = None,
+    examples_out: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[list[Operation], dict[str, str]]:
     """Turn model output into candidate operations. Returns (accepted, rejected-with-reason).
 
-    `image` and the command (`argv_for(symbol, file)`) are chosen by Replic8 per
+    `image` and the command (`argv_for(symbol, file)`) are chosen by REPLIC8 per
     language, never by the model, so the model never writes code that runs.
     Accepted operations are still only candidates: they must pass contract tests
     before the registry will publish them.
@@ -171,4 +183,6 @@ def validate_proposal(
             rejected[label] = "duplicate operation name"
             continue
         accepted.append(op)
+        if examples_out is not None:
+            examples_out[op.tool] = examples_from(item, op.input_schema)
     return accepted, rejected

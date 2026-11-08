@@ -1,7 +1,7 @@
 ! ============================================================
 ! SUBSIDIARY C - PARTS INVENTORY AND LOGISTICS (PIL)
 ! Industrial logistics: replacement-part stock and shipping lanes.
-! Demo stand-in for replic8 (FR-10). Read-only lookups.
+! Demo stand-in for REPLIC8 (FR-10). Read-only lookups.
 ! Line protocol: command on line 1, KEY=VALUE lines, END.
 ! ============================================================
 program inventory

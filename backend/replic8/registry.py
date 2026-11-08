@@ -12,7 +12,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .models import NAME, ContractTestResult, Operation, WrapperVersion
+from .models import NAME, ContractCase, ContractTestResult, Operation, WrapperVersion
 
 
 class RegistryError(Exception):
@@ -54,6 +54,9 @@ class Registry:
         source_commit: str,
         candidates: list[Operation],
         tests: dict[str, ContractTestResult],
+        cases: dict[str, list[ContractCase]] | None = None,
+        rejected: dict[str, str] | None = None,
+        reason: str = "onboarded",
     ) -> WrapperVersion:
         """Save a new version containing only operations whose contract tests passed.
 
@@ -61,13 +64,14 @@ class Registry:
         `rejected` and never served (FR-3). Returns the saved version.
         """
         published: list[Operation] = []
-        rejected: dict[str, str] = {}
+        rejected = dict(rejected or {})
+        cases = cases or {}
         for op in candidates:
             result = tests.get(op.tool)
             if result is None:
                 rejected[op.tool] = "no contract test"
             elif not result.passed or result.cases < 1:
-                rejected[op.tool] = "contract test failed"
+                rejected[op.tool] = f"contract test failed: {result.detail}".rstrip(": ")[:300]
             elif result.source_commit != source_commit:
                 rejected[op.tool] = "tested against a different commit"
             else:
@@ -77,7 +81,9 @@ class Registry:
 
         with self._lock:
             directory = self._system_dir(system)
-            version_no = max(self.versions(system), default=0) + 1
+            existing = self.versions(system)
+            version_no = max(existing, default=0) + 1
+            parent = self.current(system).version if existing and self._pointer(system).is_file() else None
             version = WrapperVersion(
                 system=system,
                 version=version_no,
@@ -85,7 +91,10 @@ class Registry:
                 repo_url=repo_url,
                 operations=published,
                 tests={op.tool: tests[op.tool] for op in published},
+                cases={op.tool: cases.get(op.tool, []) for op in published},
                 rejected=rejected,
+                parent_version=parent,
+                reason=reason,
             )
             _atomic_write(directory / f"v{version_no}.json", version.model_dump_json(indent=2))
             _atomic_write(directory / "current", str(version_no))
@@ -109,8 +118,11 @@ class Registry:
         # Re-validate on load so a hand-edited file can't publish an untested operation.
         return WrapperVersion.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
+    def _pointer(self, system: str) -> Path:
+        return self._system_dir(system) / "current"
+
     def current(self, system: str) -> WrapperVersion | None:
-        pointer = self._system_dir(system) / "current"
+        pointer = self._pointer(system)
         if not pointer.is_file():
             return None
         text = pointer.read_text(encoding="utf-8").strip()

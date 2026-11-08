@@ -4,31 +4,31 @@ Narrative and design: see [prd](prd.md).
 
 ## Project summary
 
-Replic8 turns legacy source code from GitHub into an agent-ready API and MCP server, keeps it working with self-healing, and visualizes how multiple legacy systems connect to each other and to a modern parent company.
+REPLIC8 turns legacy source code from GitHub into an agent-ready API and MCP server, keeps it working with self-healing, and visualizes how multiple legacy systems connect to each other and to a modern parent company.
 
 ## Goals
 
 - [ ] Convert 2 legacy systems (Subsidiaries B and C) into one unified, read-only API/MCP that Company A's platform and agents can call.
 - [ ] Show the connections (A to B, A to C, B to C) in a graph.
-- [ ] Auto-repair a wrapper after a rename in the legacy code, save a new version, and text the project owner.
+- [ ] Auto-repair a wrapper after a rename in the legacy code, save a new version, and show it in the dashboard.
 
 ## Functional requirements
 
 | ID | Requirement | Priority | Status | Notes |
 |----|-------------|----------|--------|-------|
-| FR-1 | Ingest a GitHub repo in any language: clone, detect language, extract functions (tree-sitter when a grammar exists) | Must | Not started | See FR-11 for fallbacks |
-| FR-2 | Generate a REST API (OpenAPI) and an MCP server per legacy system; each operation traces to `file:line` | Must | Not started | |
-| FR-3 | Contract tests run against the real legacy code; failing operations are not published | Must | Not started | |
-| FR-4 | Run legacy code in a Docker sandbox | Must | Not started | |
-| FR-5 | Gateway unifies multiple systems under one API/MCP with namespaced tools | Must | Not started | |
-| FR-6 | Graph UI of companies/systems, operations, and links between them (edges from schemas) | Must | UI preview | React Flow workspace in `web/`; example links clearly labeled, actual schema-edge backend pending |
-| FR-7 | Self-healing: detect failing tests or a changed legacy repo, Nemotron diagnoses against the source diff, regenerate, replay tests, save only on pass | Should | Not started | No vision model in v1 |
-| FR-8 | Version history and rollback of wrappers | Should | Not started | |
+| FR-1 | Ingest a GitHub repo in any language: clone, detect language, extract functions (tree-sitter when a grammar exists) | Must | Built | GitHub or local demo repos; COBOL and Fortran parsed with tree-sitter |
+| FR-2 | Generate a REST API (OpenAPI) and an MCP server per legacy system; each operation traces to `file:line` | Must | Built | MCP at `/mcp` is the main interface for agents; REST and OpenAPI (`/v1/openapi.json`) serve the same tools |
+| FR-3 | Contract tests run against the real legacy code; failing operations are not published | Must | Built | Recorded input/output cases; output schema learned from real outputs |
+| FR-4 | Run legacy code in a Docker sandbox | Must | Built | Also compiles legacy code in the sandbox |
+| FR-5 | Gateway unifies multiple systems under one API/MCP with namespaced tools | Must | Built | MCP first; REST and MCP share `validate_call` |
+| FR-6 | Graph UI of companies/systems, operations, and links between them (edges from schemas) | Must | UI preview | React Flow workspace in `web/`; example links clearly labeled, backend `/v1/graph` now serves real schema edges; UI still shows registration only |
+| FR-7 | Self-healing: detect failing tests or a changed legacy repo, Nemotron diagnoses against the source diff, regenerate, replay tests, save only on pass | Should | Built | Tested live: rename in COBOL repaired and saved as v2 in about 6s |
+| FR-8 | Version history and rollback of wrappers | Should | Built | `/v1/systems/{s}/versions`, admin rollback |
 | FR-9 | Extension module: add functionality separate from legacy code | Could | Not started | Stretch |
-| FR-10 | Build the demo: a modern Company A stand-in (own API + agent) and 2 legacy systems (B: oilfield services, C: logistics/manufacturing), each with 2 to 3 read operations | Must | Not started | Languages TBD; cover at least 2 tiers |
-| FR-11 | Language-agnostic ingestion with 3 tiers: parsed, inferred (LLM), black-box (CLI/HTTP wrapper). Label each operation with its tier; every tier must pass contract tests | Must | Not started | "Any language" is the goal, proven on demo languages |
-| FR-12 | Send-only status updates to allowlisted phone numbers (e.g. project owner) via Photon on key events (published, failure, heal start/success/fail). No inbound handling, no secrets or code in messages, a failed send never blocks the pipeline | Should | Not started | Numbers/keys in env vars, not the repo |
-| FR-13 | Operations are marked read or write; write operations are disabled by default and need explicit authorization | Must | Not started | v1 demo is lookups and recommendations only |
+| FR-10 | Build the demo: a modern Company A stand-in (own API + agent) and 2 legacy systems (B: oilfield services, C: logistics/manufacturing), each with 2 to 3 read operations | Must | Built | B in COBOL, C in Fortran (`legacy/`); Company A stand-in still to do |
+| FR-11 | Language-agnostic ingestion with 3 tiers: parsed, inferred (LLM), black-box (CLI/HTTP wrapper). Label each operation with its tier; every tier must pass contract tests | Must | Partly built | `parsed` tier only; `inferred` and `black-box` not built |
+| FR-12 | Send-only status updates to allowlisted phone numbers (e.g. project owner) via Photon on key events (published, failure, heal start/success/fail). No inbound handling, no secrets or code in messages, a failed send never blocks the pipeline | Should | Dropped | Not building Photon (2026-11-08). Status is in `GET /v1/events` and the dashboard |
+| FR-13 | Operations are marked read or write; write operations are disabled by default and need explicit authorization | Must | Built | Write ops blocked (403) and not published in v1 |
 
 ## Website review requirements
 
@@ -44,7 +44,6 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 
 - **Traceability:** every generated operation links to source and a passing test.
 - **Security:** legacy code runs only in the sandbox; no secrets in the repo; gateway needs a token.
-- **Messaging is send-only:** Replic8 sends updates through Photon and never reads replies or acts on incoming messages.
 - **Performance:** a demo conversion should finish fast enough to show live (target TBD).
 
 ## Out of scope
@@ -53,6 +52,7 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 - Screen or vision-based healing (Gemini Vision): dropped for v1.
 - Write operations such as purchasing or dispatching in v1.
 - Production-grade multi-tenant hosting.
+- Photon text notifications (dropped 2026-11-08; the dashboard's activity feed shows status instead).
 
 ## Open questions
 
@@ -60,15 +60,21 @@ See [prd section 11](prd.md#11-open-questions).
 
 ## Decisions
 
+- **2026-11-08:** Photon text notifications are dropped. Reason: team decision to focus scope; the dashboard's activity feed shows status instead.
+- **2026-11-08:** MCP is the main interface for agents and the demo. The REST API (with OpenAPI) stays, serving the same tools through the same checks, so we can show it if judges ask.
+- **2026-11-08:** The product name is written REPLIC8 everywhere it appears as a name. Code identifiers stay lowercase where tooling needs it (Python package `replic8`, Docker tags, paths, storage keys). Reason: Aryan's call; matches the renamed GitHub repo.
+- **2026-11-08:** Published versions are pinned to the commit they were tested on; legacy changes are picked up by a check, retested, and saved as a new version. Reason: agents never see a half-broken tool, and every answer has a tested commit.
+- **2026-11-08:** Output schemas are learned from real contract-test outputs, not taken from the model. Reason: in live testing Nemotron guessed wrong types and list names for the COBOL output.
+- **2026-11-08:** Admin actions (onboard, repair, rollback) need a separate admin token. Reason: an agent's gateway token should never be able to change what's published.
 - **2026-11-07:** Demo legacy languages: Subsidiary B (oilfield maintenance) is written in COBOL, Subsidiary C (logistics/manufacturing) in Fortran. Reason: Aryan's call; both are classic legacy languages. Both have tree-sitter grammars, so both use the `parsed` tier; a `black-box` path for Fortran is a stretch goal. The live rename for self-healing happens in the COBOL system.
 - **2026-11-07:** Nemotron model for generation and healing: `nvidia/nemotron-3.5-super-vl-120b-a12b` via `https://integrate.api.nvidia.com/v1`. Reason: it's the endpoint on our key. Tested live: about 2s per proposal with thinking off; NVIDIA rejects `nvext.guided_json` but accepts `response_format`. It is early access, so keep a fallback model.
-- **2026-11-07:** The model never writes code or commands. It only picks functions and describes their inputs and outputs; replic8 builds each call itself. Reason: in live testing the model put inline Python into the command, which both broke its JSON and meant running model-written code.
-- **2026-11-07:** Demo is a parent company (A, modern) plus two legacy subsidiaries (B oilfield services, C logistics/manufacturing). Replic8 connects legacy to modern and legacy to legacy. Reason: a believable acquisition story that shows both connection types.
+- **2026-11-07:** The model never writes code or commands. It only picks functions and describes their inputs and outputs; REPLIC8 builds each call itself. Reason: in live testing the model put inline Python into the command, which both broke its JSON and meant running model-written code.
+- **2026-11-07:** Demo is a parent company (A, modern) plus two legacy subsidiaries (B oilfield services, C logistics/manufacturing). REPLIC8 connects legacy to modern and legacy to legacy. Reason: a believable acquisition story that shows both connection types.
 - **2026-11-07:** Gemini Vision is dropped. Only Nemotron is used, reading the legacy codebases. Self-healing is driven by failing tests and code diffs, not screenshots. Reason: the team doesn't need vision, and it saves build time.
 - **2026-11-07:** The live break is renaming a function or field in the legacy code. Reason: scripted, reliable, and rehearsable.
 - **2026-11-07:** v1 is read-only (lookups and recommendations). Reason: purchasing or dispatching would need extra authorization.
-- **2026-11-07:** Replic8 should handle any legacy language. Defined as 3 ingestion tiers (parsed, inferred, black-box) with a confidence label per operation, not a promise that every repo works. Reason: nobody can guarantee "any," but tiers plus mandatory contract tests keep it honest.
-- **2026-11-07:** Project owner notifications go through Photon and are strictly outbound. Reason: no inbound path means no way to trigger actions by text, which keeps the system's write access out of messaging.
+- **2026-11-07:** REPLIC8 should handle any legacy language. Defined as 3 ingestion tiers (parsed, inferred, black-box) with a confidence label per operation, not a promise that every repo works. Reason: nobody can guarantee "any," but tiers plus mandatory contract tests keep it honest.
+- **2026-11-07:** Project owner notifications go through Photon and are strictly outbound. Reason: no inbound path means no way to trigger actions by text, which keeps the system's write access out of messaging. *(Superseded 2026-11-08: Photon dropped.)*
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.
 
 - **2026-11-07:** Website direction is a silver infinity object on a dark starfield, with a narrative landing page and a separate SaaS workspace. The numeral 8 in REPLIC8 becomes the object followed on scroll. Assets generated through Higgsfield; local review requested before publication.

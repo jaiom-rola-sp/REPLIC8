@@ -1,6 +1,6 @@
 # Demo legacy systems (FR-10)
 
-Two small stand-ins for the subsidiaries' old software. replic8 treats them as untrusted legacy code: it compiles and runs them only in the sandbox.
+Two small stand-ins for the subsidiaries' old software. REPLIC8 treats them as untrusted legacy code: it compiles and runs them only in the sandbox.
 
 | Folder | Company | Language | Operations (read-only) |
 |--------|---------|----------|------------------------|
@@ -18,12 +18,12 @@ Demo chain: B `GET-REQUEST R-1001` gives part `PMP-2210` at site `PERMIAN`. Then
 
 ## Line protocol
 
-Both programs read a command on the first stdin line, then `KEY=VALUE` lines, then `END`. They print `KEY=VALUE` lines; `BEGIN-ITEMS` starts a list and `--` closes each item. replic8's shim (`backend/runtime/shim.py`) converts JSON to and from this.
+Both programs read a command on the first stdin line, then `KEY=VALUE` lines, then `END`. They print `KEY=VALUE` lines; `BEGIN-ITEMS` starts a list and `--` closes each item. REPLIC8's shim (`backend/runtime/shim.py`) converts JSON to and from this.
 
 ## Self-heal rehearsal
 
-The live break is in COBOL: rename the paragraph `GET-REQUEST` (and its `WHEN "GET-REQUEST"` line) to `FETCH-REQUEST`. The old wrapper then fails its contract test, and replic8 should re-point `maintenance.get_request` at the new paragraph without changing what agents see.
+The live break is in COBOL: rename the paragraph `GET-REQUEST` (and its `WHEN "GET-REQUEST"` line) to `FETCH-REQUEST`. The old wrapper then fails its contract test, and REPLIC8 should re-point `maintenance.get_request` at the new paragraph without changing what agents see.
 
 ## Note
 
-For the real demo, each folder should be its own GitHub repo so replic8 can ingest it by URL (FR-1). See the PRD open questions.
+For the real demo, each folder should be its own GitHub repo so REPLIC8 can ingest it by URL (FR-1). See the PRD open questions.

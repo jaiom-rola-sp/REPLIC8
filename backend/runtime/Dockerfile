@@ -1,4 +1,4 @@
-# replic8 legacy runtime: COBOL and Fortran compilers plus the call shim.
+# REPLIC8 legacy runtime: COBOL and Fortran compilers plus the call shim.
 # Build: docker build -t replic8-legacy-runtime:1 backend/runtime
 # Pin the base image by digest before the demo (docs/security.md, known gaps).
 # Behind an HTTPS-only proxy (like Claude cloud sessions), apt needs https sources

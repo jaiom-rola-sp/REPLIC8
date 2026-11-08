@@ -127,6 +127,17 @@ class ContractTestResult(BaseModel):
         return v
 
 
+class ContractCase(BaseModel):
+    """One recorded call: this input gave this output on the tested commit.
+
+    Self-heal replays these exact inputs and requires identical outputs, so a
+    repair can't silently change what agents get back.
+    """
+
+    input: dict[str, Any]
+    output: dict[str, Any]
+
+
 class WrapperVersion(BaseModel):
     system: str
     version: int = Field(ge=1)
@@ -135,7 +146,10 @@ class WrapperVersion(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     operations: list[Operation]
     tests: dict[str, ContractTestResult]
+    cases: dict[str, list[ContractCase]] = Field(default_factory=dict)
     rejected: dict[str, str] = Field(default_factory=dict)
+    parent_version: int | None = None
+    reason: str = Field(default="onboarded", max_length=100)
 
     @field_validator("system")
     @classmethod
