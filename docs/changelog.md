@@ -9,6 +9,13 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Requirement(s):** FR-9, FR-10, FR-15, WEB-8, WEB-13
 - **Validation:** backend 181 passed, 14 skipped (27 new tests: the spec reader, refs/allOf/cycles, Swagger 2, alias refusal, path traversal, name clashes, import events, re-import replaces, established tools return 404 and are absent from `/v1/operations` and `/v1/openapi.json`, graph parent edge and `part_id` link). Web: 25 tests pass and the build is clean. Not tested: an import from a real GitHub repo (the same `fetch` code the legacy import uses, exercised here with a local repo), and the dashboard in a browser.
 - **Commit:** this commit
+## 2026-11-07: More languages, step 2: finding functions in C, Pascal, Python, Perl and PHP
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** `extract.py` now finds real functions in five more languages with the tree-sitter grammars: C function definitions (through pointer declarators, including old-style parameter lists; not declarations, not `main`), Pascal procedures and functions that have a body (not interface-only declarations, not nested ones), and top-level Python, Perl and PHP functions (no methods, nested functions, `main`, underscore names, or qualified Perl names). Each name is still confirmed to sit on its reported line, with a per-language pattern. Files are parsed in separate processes as before but up to 8 at once, which cut the cost from 138 ms to 44 ms per file on this machine. Bug found by an existing test and fixed: `argv_for` would have built a line-protocol command for a Python, C, Pascal, Perl or PHP file, pointing at a binary that does not exist; it now returns nothing for them (`PROTOCOL` = COBOL, Fortran, Java) until B3 and B4 give them their own calling methods. `deploy/vm/setup.sh` now downloads whatever grammars the code has extractors for, instead of a hand-written list of three.
+- **Requirement(s):** FR-11, FR-14
+- **Validation:** 185 backend tests pass (13 new, 6 skipped need an extra image): exact names and lines for each language including the trap cases, unparsable files reported and not trusted, file extensions, name confirmation, parallel parsing in file order, and the protocol command refusal. Not tested: real third-party projects, very old dialects, a deploy on the Azure VM. Known: a Python, Perl, PHP, C or Pascal repo now passes Detect, Build and finds its functions, but still stops at "Find the functions" with "no callable functions found" because the calling methods are not built yet.
+- **Commit:** not committed yet (awaiting approval)
 
 ## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
 
@@ -17,12 +24,36 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Requirement(s):** FR-10, NFR Security
 - **Commit:** this commit
 
+## 2026-11-07: More languages, step 1: the sandbox image and build step
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** The runtime image now also has gcc, Free Pascal, PHP and Perl (Python was already there); it grew from 988 MB to 1.16 GB. `backend/runtime/build.py` compiles C (all `.c` files together when exactly one has `main()`, otherwise each program alone, with `-I` for header folders) and Pascal programs, and syntax-checks every Python, Perl and PHP file so a broken script fails the build instead of the first call. `runtimes.py` registers the five languages, and `ingest.py` recognises `.pm`, `.pp` and `.lpr`. New Docker tests (`tests/test_languages_build.py`, with tiny fixtures under `tests/fixtures/langs/`) build and run a two-file C program and a Pascal program, accept three valid scripts, and reject three broken ones. One existing test used a Python repo as its "unsupported language" example and now uses Ruby. Python, Perl, PHP, C and Pascal repos now pass "Detect" and "Build", then stop at "Find the functions" until B2 to B4 exist.
+- **Requirement(s):** FR-11, FR-14
+- **Validation:** 172 backend tests pass (162 before plus 10 new; 6 skipped need an extra image). Not tested: real third-party C, Pascal, Perl or PHP projects; old dialects (K&R C, Turbo Pascal, PHP 5 code on PHP 8); a deploy on the Azure VM (the deploy script builds the same Dockerfile, but the five grammars still have to be added to its download list in B2).
+- **Commit:** aeac7ac
+
+## 2026-11-07: Connect screen and Try it
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** New **Connect** item in the dashboard sidebar (`ConnectAgent.jsx`, `connectSnippets.js`): the gateway's MCP address and copy-paste setup for Claude Code, a generic MCP config and curl, with the token always a placeholder. New **Try it** panel on each operation (`TryIt.jsx`, `tryIt.js`): a form built from the input schema, checked before sending, running a live read-only call and showing the result and its provenance, with plain explanations of failures. Documented in `web/README.md`.
+- **Requirement(s):** WEB-11, WEB-12
+- **Validation:** 31 web tests (9 new) and a clean build. Real run in headless Chrome against the real gateway: the Connect screen showed the derived address and the verified Claude Code command and the real token appeared nowhere on the page or in its HTML; Try it built its form from the schema, caught an over-long input locally, returned the real record for R-1001 with its source and commit, returned "not found" for a request that does not exist, and was disabled in demo mode; no page errors. Not tested: the Claude Code command was checked against `claude mcp add --help`, not run; the generic config format for clients other than Claude Code; Try it on an operation whose schema falls back to the JSON box.
+- **Commit:** 7d0684f
+
+## 2026-11-07: Plan decisions for the Connect screen, Try it and more languages
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Recorded the plan decisions in requirements and the PRD: the command-line wrapper may turn a caller's value into its own argument with guards (narrows the "caller input never becomes an argument" rule; Krish to review), Python gets a function caller now while Perl and PHP go through the wrapper, one sandbox image, and the order (A then B). FR-14 reworded to match. Checked that tree-sitter grammars for C, Pascal, Python, Perl and PHP exist and parse real code, and that `claude mcp add --transport http <name> <url> --header "Authorization: Bearer ..."` is the right Claude Code syntax.
+- **Requirement(s):** FR-14
+- **Commit:** 7d0684f
+
 ## 2026-11-07: Hosting is Azure only
 
 - **Who:** Claude (for Jaiom)
 - **What changed:** PRD section 8 (hosting row), the cloud-provider open question and the risks line now say Azure only (Azure for Students VM for the backend, Vercel for the frontend, laptop plus tunnel as the fallback), replacing the Vultr choice and the Vultr, DigitalOcean and AWS alternatives. Requirements: new decision, and the two Vultr decisions are marked superseded. `docs/architecture.md` updated. Left alone: `deploy/` (the folder was still named `vultr` then; Aryan has since renamed it `deploy/vm`) and the hosting line in `docs/security.md` (T31), which belong to teammates.
 - **Requirement(s):** none
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** 5aaddd6
+
 ## 2026-11-08: Azure hosting guide, deploy/vm, and Windows path fixes
 
 - **Who:** Aryan Mandapati
@@ -36,14 +67,14 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** A system's detail panel now shows its version history and has **Check for changes**, **Repair now** and **Roll back** (admin token kept in memory only), plus a status line that follows the system's latest event. The Activity screen and the overview's recent activity now show the gateway's real event log (polled every 2 s) instead of simulated entries; the "Run demo workflow" buttons are hidden when connected. Events that change what is published reload the operations, graph and versions. New files: `web/src/SystemHealth.jsx`, `web/src/liveEvents.js` (+ test). Corrected `web/README.md`, which claimed the dashboard read `/v1/events` before it did. Found: with scoped tokens, a system imported from the dashboard is invisible to the dashboard's own token until an operator adds its scope (open question in the PRD).
 - **Requirement(s):** FR-7, FR-8, WEB-10
 - **Validation:** 22 web tests and a clean build. Real end-to-end run in headless Chrome against the real backend and real Nemotron, using a local copy of the COBOL system: open the system, check (no change), rename `GET-REQUEST` to `FETCH-REQUEST`, check again, change detected, contract test failed (function no longer found), repair saved as v2 about 10 s later, the tool still answered with the real record served by v2, roll back to v1 worked, and the activity feed showed every step; no page errors. The test system and its files were removed afterwards. Not tested: a repair of a change pushed to a real GitHub repo (the same code path, but the network fetch was not exercised), and a failed repair.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** a671426
 
 ## 2026-11-07: Plan decisions: languages, heal UI, Connect screen, imports, hosting, architecture
 
 - **Who:** Claude (for Jaiom)
 - **What changed:** Recorded the team's planning decisions. PRD: language coverage plan (read any language, run what we can; command-line wrapper, interpreted-language caller, C, Pascal, Python 3, Perl, PHP; the model stays declarative), the dashboard heal and versions experience, new F6 (Dashboard: Connect screen, Try it, Established and Extension import), hosting alternatives, scope rows, open questions, risks. Requirements: FR-6 now Built; FR-9 and FR-11 notes updated; new FR-14 (more languages) and FR-15 (Established import); WEB-10 to WEB-13; decisions. New `docs/architecture.md` (how parent companies use it, where it runs, what it stores, why no database yet, why not SpacetimeDB, where legacy data lives, tenancy, phases). Found while doing this: per-token scopes are fail-closed, so a system imported from the dashboard is invisible to the dashboard's own token until an operator adds its scope (open question in the PRD).
 - **Requirement(s):** FR-6, FR-9, FR-11, FR-14, FR-15, WEB-10 to WEB-13
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** a671426
 
 ## 2026-11-08: Merge Java switch and graph work into the propose prompt
 
@@ -65,6 +96,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** `prompts.py` rules now explain the call protocol (how input and output keys map to the legacy `KEY=VALUE` lines, `items`, `count`), require field names copied from the legacy keys so systems share names (e.g. `part_id`), and ask for agent-facing descriptions on each operation and property, strict inputs (`maxLength` from field sizes) and lenient outputs. Added `tests/test_prompts.py` (2 tests). Live run on B and C: all 4 operations accepted; known issue: `cost_usd` was typed as a string though the shim returns a number.
 - **Requirement(s):** FR-2, FR-6
 - **Commit:** c201d63
+
 ## 2026-11-08: Merge Jai's connected frontend with the security merge and Vultr deployment
 
 - **Who:** Claude (for Aryan)
@@ -77,6 +109,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Claude (for Aryan; merging Krish's work)
 - **What changed:** Merged the `security` branch. Kept Krish's `Validator.validate_call` (`validator.py`) as the single caller check and extended it with admin tokens; REST and MCP both use it, and tool lists (`/v1/operations`, MCP `tools/list`) show only a token's scopes. Kept per-token scopes (`REPLIC8_TOKEN_SCOPES`, fail closed), digest-pinned sandbox images with `--pull never`, and the stuck-docker-client fix; startup pins the local runtime image to its digest when `REPLIC8_SANDBOX_IMAGES` is unset. Removed `security.py`; kept `notify.py` removed (Photon dropped; status goes to the activity log). Calls that pass validation are now audit-logged too. All of Krish's tests pass alongside main's (145 total).
 - **Requirement(s):** FR-5, FR-13, NFR Security
+
 ## 2026-11-08: Vultr deployment for the backend; parser hang fix
 
 - **Who:** Claude (for Aryan)
@@ -136,6 +169,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Added `legacy/b-maintenance-cobol` (COBOL: `GET-REQUEST`, `LIST-OPEN-REQUESTS`) and `legacy/c-inventory-fortran` (Fortran: `check_stock`, `get_shipping_options`) with fixed-width data linked by part ID and site region. Added the runtime image (`backend/runtime/`: GnuCOBOL, gfortran, call shim, sandboxed build), tree-sitter extraction, and per-language runtimes. Live Nemotron picks exactly the four real operations. Recorded "both systems parsed". Added threats T20 to T22 and 14 tests (109 total), including an end-to-end COBOL and Fortran run through the gateway.
 - **Requirement(s):** FR-1, FR-4, FR-10, FR-11
 - **Commit:** this commit
+
 ## 2026-11-07: Security doc: scopes, digest pinning, no Photon
 
 - **Who:** Krish Thapa (with Claude)
@@ -190,7 +224,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Claude (for Aryan)
 - **What changed:** Added `backend/replic8/nemotron.py` (client), `prompts.py` (secret redaction, injection fencing, source diffs) and `generate.py` (propose operations; repairs that keep each operation's contract). Tested live against `nvidia/nemotron-3.5-super-vl-120b-a12b`: switched to `response_format` with thinking off, and the model no longer supplies commands (REPLIC8 builds them). Recorded decisions: B in COBOL, C in Fortran, the model choice, no model-written code. Added threats T15 to T19 to `docs/security.md` and 22 tests (95 total).
 - **Requirement(s):** FR-2, FR-7, FR-10, FR-11, FR-13
-- **Commit:** not committed yet
+- **Commit:** 3f2efb9
 
 ## 2026-11-07: Scroll-speed hyperspace and a journey through the loop
 

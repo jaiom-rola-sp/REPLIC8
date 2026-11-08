@@ -49,7 +49,7 @@ REPLIC8 is the integration layer. It connects **legacy to modern** (A to B, A to
 
    Each operation is labeled `parsed`, `inferred` or `black-box` so users know how much to trust it.
 
-   **Language coverage (decided 2026-11-07, to build).** The promise is *read any old language, run the ones we can build and test*. Reading is the model's job; running needs a free compiler or interpreter in the sandbox, and some languages (RPG, PL/I, mainframe dialects) have none. We add: (a) C and Pascal compilers and Python 3, Perl and PHP interpreters to the sandbox image; (b) a generic caller for interpreted languages, which calls a function by name with JSON arguments; (c) a **command-line wrapper** for any program that runs from a command line, where the model fills in a fixed form (argument template and how to read the output) and REPLIC8 validates it and builds the command. The model never writes code. A language with no toolchain stops at "no supported language yet"; a spec-only mode is not planned.
+   **Language coverage (decided 2026-11-07, to build).** The promise is *read any old language, run the ones we can build and test*. Reading is the model's job; running needs a free compiler or interpreter in the sandbox, and some languages (RPG, PL/I, mainframe dialects) have none. We add: (a) C and Pascal compilers and Python 3, Perl and PHP interpreters to the sandbox image; (b) a Python function caller, which calls a function by name with JSON arguments (Perl and PHP function callers are a stretch; those languages run through (c)); (c) a **command-line wrapper** for any program that runs from a command line, where the model fills in a fixed form (argument template and how to read the output) and REPLIC8 validates it and builds the command. The model never writes code. A language with no toolchain stops at "no supported language yet"; a spec-only mode is not planned.
 3. Nemotron picks which functions to expose and writes the wrapper: an MCP server (the main interface for agents) and a REST API (OpenAPI) with the same tools. Each operation is marked `read` or `write`; **write operations are disabled by default** (FR-13).
 4. Every exposed operation must point to a source location (`file:line`) and pass a contract test against the real legacy code. Operations that fail are not published.
 5. The legacy code runs in a sandbox (Docker), never directly on the host.
@@ -84,7 +84,7 @@ Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/
 - **Noise control:** group repeated failures into one message.
 
 ### F6. Dashboard (FR-6, WEB-4, WEB-8 to WEB-13)
-The web app in `web/`. Built: graph of systems, operations and links (collapses for hundreds of operations), operations table, and **Import from GitHub** with live stages and known-good values. Decided 2026-11-07. Heal and versions and the real activity feed are built; the rest is still to build:
+The web app in `web/`. Built: graph of systems, operations and links (collapses for hundreds of operations), operations table, and **Import from GitHub** with live stages and known-good values. Decided 2026-11-07. Heal and versions, the real activity feed, the Connect screen and Try it are built; the rest is still to build:
 - **Heal and versions:** see F2 (built).
 - **Connect screen** (a new item in the sidebar): the gateway address and copy-paste setup for an agent (Claude Code, a generic MCP client config, a curl example). The token appears as a placeholder, with no "copy with my token" button.
 - **Try it:** on each operation, fill in the inputs from the schema, run a live read-only call, and see the result and where it came from.
@@ -133,7 +133,7 @@ Everyone must use these functions.
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
 | Hosting | Vercel (frontend) and one Azure Ubuntu 24.04 VM with Docker and Caddy (backend) | Simplest for a demo; Azure for Students gives a $100 credit with no card | **Decided: Azure only** (Jai, 2026-11-07; Vultr, DigitalOcean and AWS are not used). The hosting guide and setup are in `deploy/README.md` and `deploy/vm/` (Aryan, 2026-11-08): a Standard_B2s VM (2 vCPU / 4 GB; the free 1 GB B1S size is too small for compiling COBOL and Java), ports 22 (from your IP), 80 and 443 open, and the VM's free Azure DNS name (`<label>.<region>.cloudapp.azure.com`) as the HTTPS hostname for Caddy. `deploy/vm/setup.sh` is plain Ubuntu 24.04. Student subscriptions can limit regions and VM sizes (to verify when creating the VM). Fallback: laptop plus a free Cloudflare quick tunnel. |
-| Sandbox languages | COBOL, Fortran, Java today; adding C, Pascal, Python 3, Perl, PHP | "Read any, run what we can" (F1) | **Decided 2026-11-07**; image size grows (the current image is about 1 GB) |
+| Sandbox languages | COBOL, Fortran, Java, plus (built 2026-11-07, B1) C and Pascal compilers and Python 3, Perl and PHP interpreters in the one image | "Read any, run what we can" (F1) | **Decided 2026-11-07.** The image is 1.16 GB (it was 988 MB). Those five languages are built and syntax-checked, and their functions are found (B2, built 2026-11-07); calling them is still to build (B3, B4) |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning | **Dropped 2026-11-08.**
 
 ## 9. Anti-hallucination rules (for humans and AIs)
@@ -151,7 +151,7 @@ Everyone must use these functions.
 | P1 | Rename a function/field, auto-repair, new version saved | FR-7, 8 |
 | P1 | Dashboard heal and versions (check, repair, roll back) and a real activity feed | FR-7, 8, WEB-10 |
 | P1 | Connect screen and Try it | WEB-11, WEB-12 |
-| P1 | Language coverage: command-line wrapper, interpreted-language caller, C, Pascal, Python 3, Perl, PHP | FR-11, FR-14 |
+| P1 | Language coverage: command-line wrapper, Python function caller, C, Pascal, Python 3, Perl, PHP in one sandbox image | FR-11, FR-14 |
 | P1 | Established import tab (Extension dropped 2026-11-07) | FR-15, WEB-13 |
 | ~~P1~~ | ~~Photon send-only text updates on key events~~ (dropped 2026-11-08) | FR-12 |
 | Stretch | Running extension code; extra legacy modules | FR-9 |
@@ -187,5 +187,5 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - Generated wrappers can be wrong in subtle ways, which is why tests gate publishing.
 - 24 hours is tight. Cut F4 first, then extra systems.
 - Model API outages or rate limits during the demo. Keep a recorded fallback.
-- Each new language and the command-line wrapper widen what runs in the sandbox and grow the image. Every new runtime needs its own contract tests and a pinned image, and the model must stay declarative (it fills in forms; REPLIC8 builds the commands).
+- `perl -c` runs a script's BEGIN blocks and `use` lines, so even the build step executes repo code; it runs in the sandbox like everything else, but it is why the build must stay offline and read-only. Each new language and the command-line wrapper widen what runs in the sandbox and grow the image. Every new runtime needs its own contract tests and a pinned image, and the model must stay declarative (it fills in forms; REPLIC8 builds the commands).
 - The Azure for Students credit needs a valid school email, expires after a year, and can limit regions and VM sizes. Keep the laptop plus tunnel fallback ready.

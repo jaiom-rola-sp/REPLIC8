@@ -53,9 +53,9 @@ python3 -m venv "$APP_DIR/venv"
 echo "== Parser grammars (downloaded once, so the service never fetches code at runtime)"
 install -d -o replic8 -g replic8 -m 0700 "$DATA_DIR/grammars"
 runuser -u replic8 -- env TREE_SITTER_LANGUAGE_PACK_CACHE_DIR="$DATA_DIR/grammars" \
-  "$APP_DIR/venv/bin/python" -c 'import tree_sitter_language_pack as t; t.download(["cobol", "java", "fortran"])'
+  "$APP_DIR/venv/bin/python" -c 'import tree_sitter_language_pack as t; from replic8.extract import EXTRACTORS; t.download(sorted(EXTRACTORS))'
 
-echo "== Legacy runtime image (COBOL, Java, Fortran)"
+echo "== Legacy runtime image (COBOL, Fortran, Java, C, Pascal, Python, Perl, PHP)"
 docker build -q -t replic8-legacy-runtime:1 "$APP_DIR/backend/runtime"
 
 echo "== Secrets file"
