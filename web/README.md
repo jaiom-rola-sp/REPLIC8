@@ -49,6 +49,13 @@ Demo for the repair: change the legacy repo (for example rename `GET-REQUEST` to
 
 Note: gateway tokens are scoped per system and fail closed. A system you import is not visible to the dashboard's token until an operator adds `<system>.*` to `REPLIC8_TOKEN_SCOPES` and restarts the gateway.
 
+### Connect and Try it
+
+- **Connect** (sidebar): how an agent or app uses the gateway. It shows the MCP address and copy-paste setup for Claude Code (`claude mcp add --transport http replic8 <address>/mcp --header "Authorization: Bearer YOUR_GATEWAY_TOKEN"`), a generic MCP JSON config, and two curl examples (list tools, call one tool). The token is always the placeholder `YOUR_GATEWAY_TOKEN`; the real token is never shown. A relative gateway path such as `/gateway` is shown under this site's address, and a local address gets a note that it only works on this computer. It also says how many tools your token can see.
+- **Try it** (in an operation's detail panel): a form built from the operation's input schema (text, whole numbers, numbers, true/false, fixed choices; anything nested falls back to a JSON box). Values are checked before sending (required, length, format), then it runs a live read-only call and shows the result and where it came from (version, tier, source file and line, commit, time). Write operations are disabled with a reason, and in demo mode it asks you to connect a gateway. Failed calls are explained by status (bad token, outside the token's scopes, input rejected, rate limit).
+
+The logic lives in `src/connectSnippets.js` and `src/tryIt.js`, tested by `node --test src/`.
+
 ### Many operations
 
 The graph stays readable with hundreds of operations:

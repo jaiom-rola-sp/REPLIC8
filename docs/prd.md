@@ -49,7 +49,7 @@ REPLIC8 is the integration layer. It connects **legacy to modern** (A to B, A to
 
    Each operation is labeled `parsed`, `inferred` or `black-box` so users know how much to trust it.
 
-   **Language coverage (decided 2026-11-07, to build).** The promise is *read any old language, run the ones we can build and test*. Reading is the model's job; running needs a free compiler or interpreter in the sandbox, and some languages (RPG, PL/I, mainframe dialects) have none. We add: (a) C and Pascal compilers and Python 3, Perl and PHP interpreters to the sandbox image; (b) a generic caller for interpreted languages, which calls a function by name with JSON arguments; (c) a **command-line wrapper** for any program that runs from a command line, where the model fills in a fixed form (argument template and how to read the output) and REPLIC8 validates it and builds the command. The model never writes code. A language with no toolchain stops at "no supported language yet"; a spec-only mode is not planned.
+   **Language coverage (decided 2026-11-07, to build).** The promise is *read any old language, run the ones we can build and test*. Reading is the model's job; running needs a free compiler or interpreter in the sandbox, and some languages (RPG, PL/I, mainframe dialects) have none. We add: (a) C and Pascal compilers and Python 3, Perl and PHP interpreters to the sandbox image; (b) a Python function caller, which calls a function by name with JSON arguments (Perl and PHP function callers are a stretch; those languages run through (c)); (c) a **command-line wrapper** for any program that runs from a command line, where the model fills in a fixed form (argument template and how to read the output) and REPLIC8 validates it and builds the command. The model never writes code. A language with no toolchain stops at "no supported language yet"; a spec-only mode is not planned.
 3. Nemotron picks which functions to expose and writes the wrapper: an MCP server (the main interface for agents) and a REST API (OpenAPI) with the same tools. Each operation is marked `read` or `write`; **write operations are disabled by default** (FR-13).
 4. Every exposed operation must point to a source location (`file:line`) and pass a contract test against the real legacy code. Operations that fail are not published.
 5. The legacy code runs in a sandbox (Docker), never directly on the host.
@@ -84,7 +84,7 @@ Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/
 - **Noise control:** group repeated failures into one message.
 
 ### F6. Dashboard (FR-6, WEB-4, WEB-8 to WEB-13)
-The web app in `web/`. Built: graph of systems, operations and links (collapses for hundreds of operations), operations table, and **Import from GitHub** with live stages and known-good values. Decided 2026-11-07. Heal and versions and the real activity feed are built; the rest is still to build:
+The web app in `web/`. Built: graph of systems, operations and links (collapses for hundreds of operations), operations table, and **Import from GitHub** with live stages and known-good values. Decided 2026-11-07. Heal and versions, the real activity feed, the Connect screen and Try it are built; the rest is still to build:
 - **Heal and versions:** see F2 (built).
 - **Connect screen** (a new item in the sidebar): the gateway address and copy-paste setup for an agent (Claude Code, a generic MCP client config, a curl example). The token appears as a placeholder, with no "copy with my token" button.
 - **Try it:** on each operation, fill in the inputs from the schema, run a live read-only call, and see the result and where it came from.
@@ -151,7 +151,7 @@ Everyone must use these functions.
 | P1 | Rename a function/field, auto-repair, new version saved | FR-7, 8 |
 | P1 | Dashboard heal and versions (check, repair, roll back) and a real activity feed | FR-7, 8, WEB-10 |
 | P1 | Connect screen and Try it | WEB-11, WEB-12 |
-| P1 | Language coverage: command-line wrapper, interpreted-language caller, C, Pascal, Python 3, Perl, PHP | FR-11, FR-14 |
+| P1 | Language coverage: command-line wrapper, Python function caller, C, Pascal, Python 3, Perl, PHP in one sandbox image | FR-11, FR-14 |
 | P1 | Established and Extension import tabs | FR-9, FR-15, WEB-13 |
 | ~~P1~~ | ~~Photon send-only text updates on key events~~ (dropped 2026-11-08) | FR-12 |
 | Stretch | Running extension code; extra legacy modules | FR-9 |

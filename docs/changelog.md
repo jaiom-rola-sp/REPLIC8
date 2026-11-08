@@ -2,6 +2,21 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Connect screen and Try it
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** New **Connect** item in the dashboard sidebar (`ConnectAgent.jsx`, `connectSnippets.js`): the gateway's MCP address and copy-paste setup for Claude Code, a generic MCP config and curl, with the token always a placeholder. New **Try it** panel on each operation (`TryIt.jsx`, `tryIt.js`): a form built from the input schema, checked before sending, running a live read-only call and showing the result and its provenance, with plain explanations of failures. Documented in `web/README.md`.
+- **Requirement(s):** WEB-11, WEB-12
+- **Validation:** 31 web tests (9 new) and a clean build. Real run in headless Chrome against the real gateway: the Connect screen showed the derived address and the verified Claude Code command and the real token appeared nowhere on the page or in its HTML; Try it built its form from the schema, caught an over-long input locally, returned the real record for R-1001 with its source and commit, returned "not found" for a request that does not exist, and was disabled in demo mode; no page errors. Not tested: the Claude Code command was checked against `claude mcp add --help`, not run; the generic config format for clients other than Claude Code; Try it on an operation whose schema falls back to the JSON box.
+- **Commit:** not committed yet (awaiting approval)
+
+## 2026-11-07: Plan decisions for the Connect screen, Try it and more languages
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Recorded the plan decisions in requirements and the PRD: the command-line wrapper may turn a caller's value into its own argument with guards (narrows the "caller input never becomes an argument" rule; Krish to review), Python gets a function caller now while Perl and PHP go through the wrapper, one sandbox image, and the order (A then B). FR-14 reworded to match. Checked that tree-sitter grammars for C, Pascal, Python, Perl and PHP exist and parse real code, and that `claude mcp add --transport http <name> <url> --header "Authorization: Bearer ..."` is the right Claude Code syntax.
+- **Requirement(s):** FR-14
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-07: Hosting is Azure only
 
 - **Who:** Claude (for Jaiom)
