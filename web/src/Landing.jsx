@@ -97,7 +97,7 @@ export default function Landing({ onOpenApp }) {
     <a className="skip-link" href="#discover">Skip the introduction</a>
     <Starfield reducedMotion={reducedMotion} />
     <div className="space-haze" aria-hidden="true" />
-    <InfinityScene progress={progress} reducedMotion={reducedMotion} />
+    {chapter < 3 && <InfinityScene progress={progress} reducedMotion={reducedMotion} />}
     <div className="orbital-grid" aria-hidden="true"><span/><span/><span/><span/></div>
     <header className="site-header">
       <button className="wordmark" onClick={() => goTo(0)} aria-label="REPLIC8 home"><BrandLogo /></button>

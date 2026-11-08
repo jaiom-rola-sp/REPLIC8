@@ -22,6 +22,14 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Validation:** 273 backend tests pass (6 new: the build command has no host folder, unpacking rejects links, folders, absolute and `..` paths, and an old image's output; schema repair moves `required`, keeps valid schemas, still rejects bad ones). Live run with Nemotron: the Fortran repo imported from GitHub into a workspace and published `check_stock` and `get_shipping_options`; PMP-2210 returned 12 on hand in Houston and two lanes to Permian. Not tested here: Windows itself and `start.ps1` (no PowerShell in this container).
 - **Commit:** `a1cd209`
 
+## 2026-11-08: No figure-8 after the jump (chapter 03)
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** `web/src/Landing.jsx` no longer renders the infinity scene once the story passes chapter 03 (The jump, through the hole), so Connect, Evolve and Your universe show no 8.
+- **Requirement(s):** WEB-7
+- **Validation:** Production build passes; not checked in a browser.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: One homepage logo throughout the site
 
 - **Who:** Codex (for Jaiom)
