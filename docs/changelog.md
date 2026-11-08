@@ -7,7 +7,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Krish Thapa (with Claude)
 - **What changed:** New admin-only `POST` and `DELETE /v1/admin/scopes` (`{"token_id", "scope"}`) grant or remove a gateway token's scope without a restart. Changes take effect immediately for REST calls, MCP calls, and the REST and MCP tool lists. Token ids must be 12 lowercase hex characters and belong to a gateway token (admin tokens are unscoped); scopes must be `ns.*` or `ns.tool`. A runtime grant never covers a write operation: granting a write tool by name returns 422, and a namespace grant opens only its reads; writes still need a `REPLIC8_TOKEN_SCOPES` scope and `REPLIC8_WRITE_OPS`. Every grant, removal and refused write grant is audit-logged with the admin's token id. Changes live in memory, so `REPLIC8_TOKEN_SCOPES` stays the starting config after a restart. Added a `REPLIC8_TOKEN_SCOPES` example to `backend/.env.example`, the routes to `backend/README.md`, and `DELETE` to the CORS methods. 20 tests in `tests/test_scope_admin.py`.
 - **Requirement(s):** FR-13
-- **Commit:** this commit
+- **Commit:** 803e4c7
 
 ## 2026-11-07: Hosting is Azure only
 
