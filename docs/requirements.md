@@ -50,6 +50,8 @@ REPLIC8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 - **WEB-13:** The Established system import tab works (FR-15), with an optional API file path and a **This is the parent company** checkbox; the graph shows established systems above REPLIC8, the parent with a line into it. The Extension tab is removed. **Built 2026-11-07.**
 - **WEB-14:** The dashboard opens blank, with **Start a new workspace** (gateway address, admin token, optional name; the new token is shown once with a copy button and an "I've saved it" check) and **Open a workspace** (gateway address and workspace token). **Leave workspace** returns to the blank screen, after showing the token once more to save. While a workspace is open its token can be shown (hidden until **Show**) and copied. The gateway address is filled in from `VITE_REPLIC8_GATEWAY` when the site is built with it. The example systems and simulated activity are removed. **Built 2026-11-08.**
 
+- **WEB-15:** The homepage infinity mark and REPLIC8 wordmark are the universal brand across the dashboard and other site branding. Reuse shared components to keep the identity consistent.
+
 ## Non-functional requirements
 
 - **Traceability:** every generated operation links to source and a passing test.

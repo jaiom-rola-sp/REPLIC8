@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ArrowDown, ArrowRight, GitBranch, Command, ShieldCheck, Code2, Box, Radio, Check, Play, Pause, X, Menu, ChevronRight, Network, RotateCcw, Terminal, Braces, Cpu } from 'lucide-react';
 import InfinityScene from './InfinityScene.jsx';
 import Starfield from './Starfield.jsx';
+import BrandLogo, { BrandMark as Mark } from './BrandLogo.jsx';
 
 const chapters = ['Origin', 'Discover', 'The jump', 'Connect', 'Evolve', 'Your universe'];
 const chapterIds = ['origin', 'discover', 'threshold', 'connect', 'evolve', 'universe'];
-
-function Mark({ small = false }) { return <svg className={small ? 'brand-symbol small' : 'brand-symbol'} viewBox="0 0 64 32" fill="none" aria-hidden="true"><path d="M32 16C8-15 3 39 26 22L38 10C61-7 56 47 32 16Z" stroke="currentColor" strokeWidth="4" /></svg>; }
 
 function NetworkPreview({ onOpenApp, compact = false }) {
   const [selected, setSelected] = useState('gateway');
@@ -101,7 +100,7 @@ export default function Landing({ onOpenApp }) {
     <InfinityScene progress={progress} reducedMotion={reducedMotion} />
     <div className="orbital-grid" aria-hidden="true"><span/><span/><span/><span/></div>
     <header className="site-header">
-      <button className="wordmark" onClick={() => goTo(0)} aria-label="REPLIC8 home"><Mark /><span>REPLIC8</span></button>
+      <button className="wordmark" onClick={() => goTo(0)} aria-label="REPLIC8 home"><BrandLogo /></button>
       <nav className={menuOpen ? 'main-nav open' : 'main-nav'} aria-label="Main navigation"><button onClick={() => goTo(1)}>The story</button><button onClick={() => goTo(3)}>The network</button><button onClick={() => goTo(5)}>The platform</button></nav>
       <div className="header-actions"><button className="app-link" onClick={onOpenApp}>Launch app<ArrowUpRight size={15}/></button><button className="mobile-menu icon-button" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
@@ -153,7 +152,7 @@ export default function Landing({ onOpenApp }) {
         <div className="universe-cta reveal"><div><h3>Your software has more to give.</h3><p>Let’s see where it can go.</p></div><button className="button-primary" onClick={onOpenApp}>Launch the workspace<ArrowUpRight size={16}/></button></div>
       </section>
     </main>
-    <footer className="site-footer"><button className="wordmark" onClick={() => goTo(0)}><Mark/><span>REPLIC8</span></button><span>YOUR LEGACY. A NEW DIMENSION.</span><button onClick={() => setAssetOpen(true)}>Design notes<ArrowUpRight size={12}/></button><span>© {new Date().getFullYear()} REPLIC8</span></footer>
+    <footer className="site-footer"><button className="wordmark" onClick={() => goTo(0)}><BrandLogo /></button><span>YOUR LEGACY. A NEW DIMENSION.</span><button onClick={() => setAssetOpen(true)}>Design notes<ArrowUpRight size={12}/></button><span>© {new Date().getFullYear()} REPLIC8</span></footer>
     <div className="journey-hud"><div className="journey-counter"><span>0{chapter+1} <i>/ {String(chapters.length).padStart(2, '0')}</i></span><span>{chapters[chapter].toUpperCase()}</span></div><div className="journey-progress"><i style={{width:`${progress*100}%`}}/></div></div>
     <button className="motion-control icon-button" onClick={() => setMotionPaused(!motionPaused)} aria-label={motionPaused ? 'Resume ambient motion' : 'Pause ambient motion'} title={motionPaused ? 'Resume ambient motion' : 'Pause ambient motion'}>{reducedMotion ? <Play size={13}/> : <Pause size={13}/>}<span>MOTION {reducedMotion ? 'OFF' : 'ON'}</span></button>
     {assetOpen && <div className="modal-scrim" onClick={() => setAssetOpen(false)}><section className="design-notes" role="dialog" aria-modal="true" aria-labelledby="design-title" onClick={e=>e.stopPropagation()}><button className="icon-button close-modal" onClick={()=>setAssetOpen(false)} aria-label="Close design notes"><X size={18}/></button><p className="eyebrow">DESIGN PREVIEW / 001</p><h2 id="design-title">A silver thread<br/>through your universe.</h2><p>The 8 leaves the wordmark, becomes an infinity loop, and follows the story into a connected workspace. The silver sculpture and deep-space texture were generated with Higgsfield. Scroll-driven motion and a separate layer of drifting stars bring them to life.</p><div className="asset-review-grid"><a href="/assets/silver-eight.png" target="_blank" rel="noreferrer"><img src="/assets/silver-eight.png" alt="Higgsfield-generated polished silver figure eight sculpture"/><span>Chrome 8 / infinity<ArrowUpRight size={12}/></span></a><a href="/assets/starfield.jpg" target="_blank" rel="noreferrer"><img src="/assets/starfield.jpg" alt="Higgsfield-generated monochrome starfield"/><span>Deep-space backdrop<ArrowUpRight size={12}/></span></a></div><p>The dashboard opens in a labeled demo mode. Existing gateway operations can be loaded through the configured development proxy; graph relationships in the preview are illustrative.</p><button className="button-primary" onClick={()=>setAssetOpen(false)}>Back to the story<ArrowRight size={15}/></button></section></div>}

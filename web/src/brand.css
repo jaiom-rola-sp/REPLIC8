@@ -1,0 +1,39 @@
+.replic8-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  font-family: 'Space Grotesk', 'DM Sans', sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.8px;
+  white-space: nowrap;
+}
+
+.brand-symbol {
+  display: block;
+  width: 30px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.brand-symbol.small {
+  width: 25px;
+  height: 15px;
+}
+
+.site-footer .replic8-logo {
+  font-size: 15px;
+}
+
+@media (max-width: 760px) {
+  .replic8-logo {
+    gap: 7px;
+    font-size: 17px;
+  }
+
+  .replic8-logo .brand-symbol {
+    width: 25px;
+  }
+}

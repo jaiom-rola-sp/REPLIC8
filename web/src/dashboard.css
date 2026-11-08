@@ -8,9 +8,7 @@
 .dashboard a{color:inherit}
 .dashboard button{color:inherit}
 .dash-sidebar{width:216px;flex-shrink:0;border-right:1px solid var(--dash-border);padding:33px 15px 0;position:fixed;inset:0 auto 0 0;background:#0c0c0c;display:flex;flex-direction:column;z-index:20}
-.dash-brand{font-family:'Space Grotesk',sans-serif;letter-spacing:-1.6px;font-size:25px;font-weight:700;background:none;border:0;display:flex;align-items:center;align-self:flex-start;padding:0 14px}
-.dash-brand span:first-child{font-size:29px;line-height:1}
-.dash-brand-period{width:4px;height:4px;background:#aeaeae;margin-left:7px;align-self:flex-end;margin-bottom:5px}
+.dash-brand{background:none;border:0;display:flex;align-items:center;align-self:flex-start;padding:0 14px}
 .dash-workspace{display:flex;align-items:center;gap:9px;border:1px solid #2c2c2c;background:#151515;border-radius:7px;text-align:left;padding:10px 9px;margin:32px 0 28px;width:100%;font-size:11px}
 .dash-workspace>span:nth-child(2){flex:1}
 .dash-workspace small{display:block;color:#777777;font-size:10px;margin-top:1px}
@@ -265,7 +263,6 @@ to{transform:translateX(0);opacity:1}
 
 @media(max-width:940px){.dash-sidebar{width:176px;padding:28px 10px 0}
 .dash-main{margin-left:176px}
-.dash-brand{font-size:23px}
 .dash-workspace{padding-left:7px;padding-right:7px;gap:6px;font-size:10px}
 .dash-workspace-icon{width:23px}
 .dash-workspace small{font-size:8px}
@@ -393,7 +390,6 @@ to{transform:translateX(0);opacity:1}
 @media(prefers-reduced-motion:reduce){.dashboard *,.dashboard *::before,.dashboard *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
 
-.dashboard .dash-brand{font-family:'Space Grotesk',sans-serif;font-size:25px;font-weight:600;letter-spacing:-1.4px}
 
 /* import from GitHub */
 .dash-tabs{display:flex;gap:6px;margin:0 0 18px;flex-wrap:wrap}

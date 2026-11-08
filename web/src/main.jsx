@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Landing from './Landing.jsx';
 import './styles.css';
+import { BrandMark } from './BrandLogo.jsx';
 const Dashboard = lazy(() => import('./Dashboard.jsx'));
 
 function App() {
@@ -13,7 +14,7 @@ function App() {
   }, []);
   const openApp = () => { window.location.hash = '/app'; };
   const isApp = route.startsWith('#/app');
-  return <Suspense fallback={<div className="loading-screen"><span className="loading-mark">∞</span><span>ENTERING YOUR WORKSPACE</span></div>}>
+  return <Suspense fallback={<div className="loading-screen"><BrandMark size={50} className="loading-mark" /><span>ENTERING YOUR WORKSPACE</span></div>}>
     {isApp ? <Dashboard onBack={() => { window.location.hash = ''; }} /> : <Landing onOpenApp={openApp} />}
   </Suspense>;
 }

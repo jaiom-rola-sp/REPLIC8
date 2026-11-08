@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: One homepage logo throughout the site
+
+- **Who:** Codex (for Jaiom)
+- **What changed:** Extracted the homepage infinity mark and REPLIC8 wordmark into shared brand components. The landing header/footer, dashboard sidebar, dashboard graph and detail marks, loading screen, and favicon now use that identity. Removed the alternate dashboard lettering and trailing dot.
+- **Requirement(s):** WEB-15
+- **Validation:** Production build and browser comparison of the homepage and dashboard logos.
+- **Commit:** Uncommitted.
+
 ## 2026-11-08: Workspace token on screen; gateway address filled in
 
 - **Who:** Claude (for Aryan)
