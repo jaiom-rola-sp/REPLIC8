@@ -9,7 +9,7 @@ RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnucobol3 gfortran openjdk-17-jdk-headless gcc libc6-dev fp-compiler php-cli perl python3 \
  && rm -rf /var/lib/apt/lists/*
 
-COPY shim.py build.py call_python.py /replic8/
+COPY shim.py build.py call_python.py call_cli.py /replic8/
 RUN chmod 0444 /replic8/*.py
 
 USER 65534:65534

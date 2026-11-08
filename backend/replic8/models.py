@@ -61,8 +61,9 @@ class SourceLocation(BaseModel):
 class Invocation(BaseModel):
     """How the sandbox runs an operation.
 
-    The argv is fixed at generation time. Caller input never becomes an argument:
-    it is sent as JSON on stdin, so it can't inject flags or shell syntax.
+    The argv is fixed at generation time. Caller input is sent as JSON on stdin. For a command-line program
+    the fixed argv holds a checked form, and the sandbox harness (runtime/call_cli.py) turns each caller value
+    into one argument, never a shell string, so it can't inject flags or syntax (docs/security.md T33).
     """
 
     image: str = Field(pattern=r"^[a-z0-9][a-z0-9._/-]{0,127}(:[A-Za-z0-9._-]{1,128})?(@sha256:[0-9a-f]{64})?$")

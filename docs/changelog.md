@@ -2,13 +2,22 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: More languages, step 4: the command-line wrapper
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Programs run from a command line (C and Pascal built in the sandbox; Perl, PHP and Python scripts) can now be published. `extract.program_symbols` finds them by entry point; the pipeline runs each with `--help` in the sandbox and shows the text to the model as untrusted data; the model returns a `cli` form (`args`: literals and `{field}` slots, `output`: json, keyvalue or lines); `guard.cli_problem` checks it; `runtimes.argv_for` builds the command; the fixed harness `runtime/call_cli.py` runs it with no shell, one argument per caller value. Published as tier `black-box`. Optional fields are left out when not given.
+- **Requirement(s):** FR-14, FR-11
+- **Validation:** 246 backend tests pass (6 skipped): 19 new covering program finding, the guard on forms (shell syntax, flags, unknown or doubled slots, unbounded strings), the harness in the real sandbox for Perl, PHP, C and Pascal (values cannot become flags or syntax, missing program exits 3), and onboarding to a REST call. Live run with Nemotron on a Perl script: published `stock.lookup` as black-box and answered with and without the optional field. Rebuild the image and restart the backend to use it.
+- **Open:** a value starting with `-` (including negative numbers) is refused with a 422 (harness exit code 4). Krish should review `guard.cli_problem` and `runtime/call_cli.py` (security.md T33) before this ships. Function-or-program choice per repo is still to do.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-07: More languages, step 3: the Python function caller
 
 - **Who:** Claude (for Jaiom)
 - **What changed:** Python functions can now be published as tools. New fixed harness `runtime/call_python.py` (in the image) imports one file and calls one function with JSON keyword arguments; prints and raw writes are discarded, stdin is empty, errors are reported by type only, results become a JSON object (list -> `items`, scalar -> `result`). `extract.py` reads Python parameters; `guard.py` rejects proposals whose input fields are not the function's parameter names or that omit required ones; `prompts.py` tells the model how Python is called; `runtimes.argv_for` builds the command (never the model).
 - **Requirement(s):** FR-14, FR-11
 - **Validation:** 200 backend tests pass (6 skipped). New: 14 in `test_python_calls.py` (harness behavior in the real sandbox) and `test_python_pipeline.py` (onboard, contract tests, publish, call over REST, missing input gives 422). Two older tests updated because Python now has a caller.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `f5690a2`
 
 ## 2026-11-07: Established system import; Extension tab removed
 
@@ -23,7 +32,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** `extract.py` now finds real functions in five more languages with the tree-sitter grammars: C function definitions (through pointer declarators, including old-style parameter lists; not declarations, not `main`), Pascal procedures and functions that have a body (not interface-only declarations, not nested ones), and top-level Python, Perl and PHP functions (no methods, nested functions, `main`, underscore names, or qualified Perl names). Each name is still confirmed to sit on its reported line, with a per-language pattern. Files are parsed in separate processes as before but up to 8 at once, which cut the cost from 138 ms to 44 ms per file on this machine. Bug found by an existing test and fixed: `argv_for` would have built a line-protocol command for a Python, C, Pascal, Perl or PHP file, pointing at a binary that does not exist; it now returns nothing for them (`PROTOCOL` = COBOL, Fortran, Java) until B3 and B4 give them their own calling methods. `deploy/vm/setup.sh` now downloads whatever grammars the code has extractors for, instead of a hand-written list of three.
 - **Requirement(s):** FR-11, FR-14
 - **Validation:** 185 backend tests pass (13 new, 6 skipped need an extra image): exact names and lines for each language including the trap cases, unparsable files reported and not trusted, file extensions, name confirmation, parallel parsing in file order, and the protocol command refusal. Not tested: real third-party projects, very old dialects, a deploy on the Azure VM. Known: a Python, Perl, PHP, C or Pascal repo now passes Detect, Build and finds its functions, but still stops at "Find the functions" with "no callable functions found" because the calling methods are not built yet.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `f5690a2` (committed together with step 3)
 
 ## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
 

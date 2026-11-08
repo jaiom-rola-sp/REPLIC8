@@ -62,6 +62,16 @@ PROPOSAL_SCHEMA: dict[str, Any] = {
                     "input_schema": {"type": "object"},
                     "output_schema": {"type": "object"},
                     "examples": {"type": "array", "maxItems": 3, "items": {"type": "object"}},
+                    # Only for a command-line program: the fixed form REPLIC8 turns into the command.
+                    "cli": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["args", "output"],
+                        "properties": {
+                            "args": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 80}},
+                            "output": {"enum": ["json", "keyvalue", "lines"]},
+                        },
+                    },
                 },
             },
         }
@@ -77,6 +87,49 @@ class Symbol:
     line: int
     # For a function that is called by name (Python): (parameter name, required) in order.
     params: tuple[tuple[str, bool], ...] = ()
+    # A whole program run from a command line (not a function). `help` is what it printed for --help:
+    # untrusted text, shown to the model only as data.
+    program: bool = False
+    help: str = ""
+
+
+CLI_LITERAL = re.compile(r"^[A-Za-z0-9_./:,@%+=-]{1,64}$")
+CLI_SLOT = re.compile(r"^(?:(--?[A-Za-z0-9][A-Za-z0-9_-]{0,40}=))?\{([A-Za-z_][A-Za-z0-9_]{0,63})\}$")
+
+
+def cli_problem(cli: dict[str, Any], schema: dict[str, Any]) -> str:
+    """Why a proposed command-line form is not allowed, or "" if it is.
+
+    A caller's value only ever fills a whole argument ("{field}") or the part after "--flag=". The model
+    never writes a command, never uses a shell, and every field it names must be a short scalar input.
+    """
+    props = schema.get("properties") if isinstance(schema.get("properties"), dict) else {}
+    required = set(schema["required"]) if isinstance(schema.get("required"), list) else set()
+    used: set[str] = set()
+    args = cli["args"]
+    for i, token in enumerate(args):
+        slot = CLI_SLOT.match(token)
+        if not slot:
+            if not CLI_LITERAL.match(token):
+                return f"argument {token[:30]!r} is not a plain literal or a {{field}} slot"
+            continue
+        prefix, field = slot.groups()
+        spec = props.get(field)
+        if not isinstance(spec, dict):
+            return f"slot {{{field}}} is not an input field"
+        kind = spec.get("type")
+        if kind not in ("string", "integer", "number"):
+            return f"slot {{{field}}} must be a string or number field"
+        if kind == "string" and not isinstance(spec.get("maxLength"), int):
+            return f"slot {{{field}}} needs a maxLength"
+        if field in used:
+            return f"slot {{{field}}} is used twice"
+        used.add(field)
+        if not prefix and field not in required and i > 0 and args[i - 1].startswith("-"):
+            return f"optional {{{field}}} after a flag: use --flag={{{field}}}"
+    if set(props) - used:
+        return "every input field must appear in args (not: " + ", ".join(sorted(set(props) - used))[:100] + ")"
+    return ""
 
 
 def _params_problem(params: tuple[tuple[str, bool], ...], schema: dict[str, Any]) -> str:
@@ -172,6 +225,16 @@ def validate_proposal(
             rejected[label] = "does not match an extracted symbol"
             continue
         symbol = by_key.get((item["symbol"], item["file"], item["line"]))
+        cli = item.get("cli")
+        if symbol is not None and symbol.program != (cli is not None):
+            rejected[label] = ("a program needs a cli form" if symbol.program
+                               else "cli is only for programs run from a command line")
+            continue
+        if cli is not None:
+            problem = cli_problem(cli, item["input_schema"])
+            if problem:
+                rejected[label] = problem
+                continue
         if symbol is not None and symbol.params:
             problem = _params_problem(symbol.params, item["input_schema"])
             if problem:
@@ -185,7 +248,7 @@ def validate_proposal(
         if not _line_exists(repo_root, source.file, source.line):
             rejected[label] = "source location does not exist"
             continue
-        argv = argv_for(item["symbol"], item["file"])
+        argv = argv_for(item["symbol"], item["file"], cli) if cli is not None else argv_for(item["symbol"], item["file"])
         if not argv or Path(argv[0]).name.lower() in SHELLS:
             rejected[label] = "no safe command for this symbol"
             continue
@@ -194,7 +257,7 @@ def validate_proposal(
                 namespace=namespace,
                 name=item["name"],
                 description=item["description"],
-                tier=tier,
+                tier=Tier.black_box if cli is not None else tier,
                 access=decide_access(item["symbol"], item["access"]),
                 source=source,
                 input_schema=item["input_schema"],

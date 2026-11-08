@@ -186,6 +186,41 @@ CONFIRM = {
 }
 
 
+# A file is a command-line program when it has an entry point that reads its arguments (C main, a Pascal
+# `program`, and a script that looks at its argument list). The first such line is the program's "line".
+PROGRAM_MARKERS = {
+    "c": r"\bmain\s*\(",
+    "pascal": r"^\s*program\s+\w+",
+    "python": r"__main__|\bargparse\b|\bsys\.argv\b",
+    "perl": r"\bARGV\b|\bGetOptions\b",
+    "php": r"\$argv\b|\bgetopt\s*\(",
+}
+MAX_PROGRAMS = 20
+
+
+def program_symbols(repo_root: Path) -> list[Symbol]:
+    """Files that are programs run from a command line. The symbol name is the file name without its suffix."""
+    root = repo_root.resolve()
+    found: list[Symbol] = []
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if any(p in SKIP_DIRS for p in rel.parts) or path.is_symlink() or not path.is_file():
+            continue
+        lang = language_of(path)
+        marker = PROGRAM_MARKERS.get(lang or "")
+        if marker is None or path.stat().st_size > MAX_FILE_BYTES:
+            continue
+        name = re.sub(r"[^A-Za-z0-9_]+", "_", path.stem).strip("_")
+        if not name or path.suffix.lower() == ".pm":
+            continue
+        flags = re.I if lang == "pascal" else 0
+        for number, text in enumerate(path.read_bytes().decode("utf-8", "replace").splitlines(), start=1):
+            if re.search(marker, text, flags) and not text.lstrip().startswith(("//", "#", "/*", "*", "(*")):
+                found.append(Symbol(name, rel.as_posix(), number, program=True))
+                break
+    return found[:MAX_PROGRAMS]
+
+
 def language_of(path: Path) -> str | None:
     return SUFFIXES.get(path.suffix.lower())
 

@@ -6,6 +6,7 @@ command, and the command that calls one function through the shim.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -47,8 +48,37 @@ PY_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 PY_FILE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]{0,250}\.py$")
 
 
-def argv_for(symbol: str, file: str) -> list[str]:
+SCRIPT_FILE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]{0,250}$")
+CLI_EXE = re.compile(r"^[a-z0-9_-]{1,64}$")
+INTERPRETERS = {"perl": "perl", "php": "php", "python": "python3"}
+
+
+def cli_exe(file: str) -> list[str]:
+    """What to run for a whole program: a built binary for C and Pascal, the interpreter plus the script otherwise."""
+    path = PurePosixPath(file)
+    lang = language_of(path)
+    if lang in ("c", "pascal"):
+        stem = path.stem.lower()
+        return [f"/build/{stem}"] if CLI_EXE.match(stem) else []
+    if lang in INTERPRETERS and SCRIPT_FILE.match(file) and ".." not in file.split("/"):
+        return [INTERPRETERS[lang], f"/app/{file}"]
+    return []
+
+
+def cli_argv(file: str, cli: dict) -> list[str]:
+    """The command for a program run from a command line. The form was already checked by guard.cli_problem;
+    call_cli.py checks it again inside the sandbox."""
+    exe = cli_exe(file)
+    if not exe:
+        return []
+    spec = json.dumps({"exe": exe, "args": cli["args"], "output": cli["output"]}, separators=(",", ":"))
+    return ["python3", "/replic8/call_cli.py", spec] if len(spec) <= 4096 else []
+
+
+def argv_for(symbol: str, file: str, cli: dict | None = None) -> list[str]:
     """Command that calls `symbol` defined in `file`. Empty list means "can't call it"."""
+    if cli is not None:
+        return cli_argv(file, cli)
     lang = language_of(PurePosixPath(file))
     if lang in FUNCTION:
         if not PY_NAME.match(symbol) or not PY_FILE.match(file) or ".." in file.split("/"):

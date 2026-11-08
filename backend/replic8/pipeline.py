@@ -15,8 +15,8 @@ import json
 import logging
 import threading
 import time
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, replace
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from jsonschema import Draft202012Validator
@@ -25,14 +25,14 @@ from .config import Settings
 from .contracts import replay_contract, run_contract
 from .events import EventLog
 from .executor import Executor, repo_key
-from .extract import extract_symbols
+from .extract import extract_symbols, language_of, program_symbols
 from .generate import JsonModel, heal as model_heal, propose
 from .guard import Symbol
 from .ingest import Checkout, IngestError
 from .models import NAME, Access, ContractCase, ContractTestResult, Operation, Tier, WrapperVersion
 from .prompts import source_diff
 from .registry import Registry, RegistryError
-from .runtimes import RUNTIMES, argv_for, callable_symbols
+from .runtimes import RUNTIMES, argv_for, callable_symbols, cli_exe
 from .sandbox import FunctionMissing, OutputSchemaError, Sandbox
 from .sources import SourceError, canonical_url, fetch, latest_commit
 
@@ -107,10 +107,28 @@ class Pipeline:
         symbols, partial = extract_symbols(checkout.path)
         if partial:
             log.info("partly parsed files: %s", ", ".join(partial[:10]))
-        found = callable_symbols(checkout.path, symbols)
+        found = callable_symbols(checkout.path, symbols) + self._programs(checkout)
         if not found:
-            raise PipelineError("no callable functions found in the legacy code")
+            raise PipelineError("no callable functions or command-line programs found in the legacy code")
         return found
+
+    def _programs(self, checkout: Checkout) -> list[Symbol]:
+        """Command-line programs, each with what it prints for --help (run in the sandbox, shown to the model as data)."""
+        programs = []
+        build = self.executor.builds_root / repo_key(checkout.url) / checkout.commit
+        for sym in program_symbols(checkout.path):
+            exe = cli_exe(sym.file)
+            help_text = ""
+            if exe:
+                try:
+                    res = self.sandbox.run(RUNTIMES[language_of(PurePosixPath(sym.file))].image, checkout.path,
+                                           exe + ["--help"], b"", build_dir=build if build.is_dir() else None)
+                    raw = (res.stdout or b"")[:2000].decode("utf-8", "replace")
+                    help_text = "".join(c for c in raw if c in "\n\t" or " " <= c < "\x7f").strip()
+                except Exception:  # noqa: BLE001 - help is optional context; the contract tests are the real gate
+                    log.info("could not read --help for %s", sym.file)
+            programs.append(replace(sym, help=help_text))
+        return programs
 
     def _model(self) -> JsonModel:
         if self.model is None:

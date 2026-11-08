@@ -13,7 +13,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .models import Operation, WrapperVersion
-from .sandbox import (SHIM_FUNCTION_MISSING, FunctionMissing, OutputSchemaError, Sandbox, SandboxCrash,
+from .sandbox import (SHIM_FUNCTION_MISSING, SHIM_VALUE_REFUSED, FunctionMissing, OutputSchemaError, Sandbox, SandboxCrash,
                       SandboxError, SandboxTimeout)
 
 
@@ -66,6 +66,8 @@ class Executor:
             raise SandboxTimeout("legacy system timed out")
         if result.output_too_large:
             raise SandboxCrash("legacy system returned too much data")
+        if result.exit_code == SHIM_VALUE_REFUSED:
+            raise CallError("an input value was refused: it must be short printable text and not start with '-'")
         if result.exit_code == SHIM_FUNCTION_MISSING:
             raise FunctionMissing("legacy system no longer has this function")
         if result.exit_code != 0:

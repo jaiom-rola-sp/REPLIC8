@@ -52,6 +52,7 @@ class FunctionMissing(SandboxError):
 
 # Exit codes from runtime/shim.py
 SHIM_FUNCTION_MISSING = 3
+SHIM_VALUE_REFUSED = 4  # call_cli.py refused a caller value (the caller's fault, not the legacy program's)
 
 
 @dataclass
