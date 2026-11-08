@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Reverted the legacy-expand merge
+
+- **Who:** Claude (for Krish)
+- **What changed:** Reverted merge `9d931df` (branch `legacy-expand`: demo systems B and C grown to 9 operations each, messier B/C code, and MRP/400 added as system D) with `git revert -m 1`, as revert commit `ccd4a2b`. `main` is back to its state before the merge. The `legacy-expand` branch is still on GitHub. To bring it back, revert `ccd4a2b`; merging the branch again won't work on its own.
+- **Requirement(s):** FR-10, FR-3, FR-13 (undoes the work logged under these)
+- **Validation:** `git diff --stat HEAD~1` on the revert is the exact reverse of the merge (38 files, 17 insertions, 2835 deletions); no conflicts.
+- **Commit:** `ccd4a2b` (revert); this entry in its own commit
+
 ## 2026-11-08: Sandbox runs on Docker Desktop's classic image store
 
 - **Who:** Claude (for Aryan)
