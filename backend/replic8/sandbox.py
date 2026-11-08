@@ -145,6 +145,23 @@ class Sandbox:
         self.builds_root = (builds_root or repos_root.parent / "builds").resolve()
         self.allowed_images = allowed_images
         self.limits = limits
+        self._refs: dict[str, str] = {}
+
+    def runnable(self, pinned: str) -> str:
+        """The reference to hand to `docker run` for an allowlisted, pinned image.
+
+        `name@sha256:<digest>` works when the digest is a registry (manifest) digest, and with
+        Docker's containerd image store. With the classic store (common on Docker Desktop for
+        Windows) a locally built image has no manifest digest, so `name@<image id>` is "No such
+        image". The bare image ID names exactly the same content, so use it then. Checked once.
+        """
+        if pinned not in self._refs:
+            digest = pinned.split("@", 1)[1]
+            ref = pinned
+            if not _image_exists(pinned) and _image_exists(digest):
+                ref = digest
+            self._refs[pinned] = ref
+        return self._refs[pinned]
 
     def _check_build_dir(self, build_dir: Path) -> Path:
         resolved = build_dir.resolve()
@@ -202,7 +219,7 @@ class Sandbox:
         resolved = self._check(image, code_dir, payload)
         build = self._check_build_dir(build_dir) if build_dir is not None else None
         name = f"replic8-{uuid.uuid4().hex}"
-        cmd = build_command(name, image, resolved, argv, limits, build, writable_build)
+        cmd = build_command(name, self.runnable(image), resolved, argv, limits, build, writable_build)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         limit = limits.max_output_bytes
@@ -260,6 +277,13 @@ class Sandbox:
             timed_out=timed_out,
             output_too_large=too_large.is_set(),
         )
+
+
+def _image_exists(ref: str) -> bool:
+    try:
+        return subprocess.run(["docker", "image", "inspect", ref], capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def _kill(name: str, proc: subprocess.Popen) -> None:

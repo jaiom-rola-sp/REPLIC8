@@ -78,6 +78,7 @@ def test_stuck_client_after_timeout_is_reported_not_raised(tmp_path, monkeypatch
     monkeypatch.setattr(sandbox_module.subprocess, "Popen", StuckDockerClient)
     monkeypatch.setattr(sandbox_module, "_kill", lambda name, proc: killed.append(name))
     monkeypatch.setattr(Sandbox, "_check", lambda self, image, code_dir, payload: code_dir)
+    monkeypatch.setattr(Sandbox, "runnable", lambda self, pinned: pinned)  # no real docker here
     box = Sandbox(tmp_path, frozenset({FAKE_PINNED}), SandboxLimits(timeout_s=0.01))
 
     result = box.run(FAKE_PINNED, tmp_path, ["sleep", "60"], b"{}")
@@ -222,3 +223,25 @@ def test_build_output_is_unpacked_as_plain_files_only(tmp_path):
     assert not (tmp_path.parent / "escape").exists()
     with pytest.raises(SandboxError, match="could not be read"):
         unpack_build(b"built=1 failed=0\n", tmp_path)  # an old image that prints instead of sending files
+
+
+def test_runs_by_image_id_when_docker_cannot_resolve_name_at_id(tmp_path, monkeypatch):
+    # Docker Desktop's classic image store: "name@<image id>" is "No such image", the bare id works.
+    image_id = "sha256:" + "8e" * 32
+    pinned = f"replic8-legacy-runtime:1@{image_id}"
+    seen = []
+
+    def fake_exists(ref):
+        seen.append(ref)
+        return ref == image_id
+
+    monkeypatch.setattr(sandbox_module, "_image_exists", fake_exists)
+    box = Sandbox(tmp_path / "repos", frozenset({pinned}), SandboxLimits())
+    assert box.runnable(pinned) == image_id
+    assert box.runnable(pinned) == image_id and len(seen) == 2  # checked once, then remembered
+
+    monkeypatch.setattr(sandbox_module, "_image_exists", lambda ref: True)  # registry digest or containerd store
+    assert Sandbox(tmp_path / "repos", frozenset({pinned}), SandboxLimits()).runnable(pinned) == pinned
+    # Nothing found either way: keep the pinned name so Docker's own error says what is missing.
+    monkeypatch.setattr(sandbox_module, "_image_exists", lambda ref: False)
+    assert Sandbox(tmp_path / "repos", frozenset({pinned}), SandboxLimits()).runnable(pinned) == pinned

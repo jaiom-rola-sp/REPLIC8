@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Sandbox runs on Docker Desktop's classic image store
+
+- **Who:** Claude (for Aryan)
+- **What changed:** On Aryan's Windows PC every build failed with "No such image: replic8-legacy-runtime:1@sha256:...". The backend pins the sandbox image as `name@<image id>`; Docker's classic image store (common on Docker Desktop for Windows) only resolves `name@<digest>` for registry digests, so a locally built image is "not found" that way. `Sandbox.runnable` now checks once which form Docker accepts and, if only the bare image ID works, runs that. It names exactly the same content, so the pin is unchanged. This was most likely the cause of the earlier "legacy code did not compile in the sandbox" too; the clearer build error from `a1cd209` is what showed it.
+- **Requirement(s):** FR-4, FR-1
+- **Validation:** Reproduced here by running Docker with the classic store: `name@<id>` gave the same "No such image" error, the bare ID ran. With the fix: 268 backend tests pass on the classic store (6 skipped for a missing `alpine` image) and 274 on the containerd store, including a new test. A real import of `legacy-c-inventory-fortran` from GitHub on the classic store published `check_stock` and `get_shipping_options` and returned two lanes to Permian.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Builds work on Windows; Fortran repo imports; start script
 
 - **Who:** Claude (for Aryan)
@@ -12,7 +20,7 @@ Log every meaningful change to the project. Newest entries go at the top.
   - **Start script:** new `backend/start.ps1` loads `backend\.env` (any `NAME=value` line), makes and saves an admin token if there is none, checks Docker, rebuilds the sandbox image (cached), ignores a stale `REPLIC8_SANDBOX_IMAGES`, checks the port, shows the Tailscale address and admin token, copies the token, and starts the backend. `readme.md` has a "Start the backend (Windows)" section; `backend/README.md` mentions it.
 - **Requirement(s):** FR-4, FR-1, FR-11, FR-16
 - **Validation:** 273 backend tests pass (6 new: the build command has no host folder, unpacking rejects links, folders, absolute and `..` paths, and an old image's output; schema repair moves `required`, keeps valid schemas, still rejects bad ones). Live run with Nemotron: the Fortran repo imported from GitHub into a workspace and published `check_stock` and `get_shipping_options`; PMP-2210 returned 12 on hand in Houston and two lanes to Permian. Not tested here: Windows itself and `start.ps1` (no PowerShell in this container).
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `a1cd209`
 
 ## 2026-11-08: One homepage logo throughout the site
 
