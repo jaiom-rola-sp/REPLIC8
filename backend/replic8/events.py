@@ -17,7 +17,7 @@ from typing import Any
 
 SAFE_TEXT = re.compile(r"[^A-Za-z0-9 ._:/()+,=-]")
 KINDS = {
-    "onboard_started", "onboarded", "onboard_failed", "published", "contract_failed",
+    "onboard_started", "onboard_stage", "onboarded", "onboard_failed", "published", "contract_failed",
     "call_failed", "heal_started", "heal_saved", "heal_failed", "heal_skipped", "rolled_back",
     "change_detected", "schema_adjusted",
 }

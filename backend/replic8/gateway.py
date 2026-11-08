@@ -40,12 +40,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .config import Settings
 from .events import EventLog
 from .executor import Executor
 from .graph import build_graph
+from .ingest import IngestError
+from .sources import canonical_url
 from .mcp_server import McpAuth, build_mcp
 from .models import NAME, Access
 from .registry import Registry, RegistryError
@@ -65,6 +67,19 @@ class OnboardRequest(BaseModel):
     repo_url: str = Field(max_length=300)
     # Optional operator-supplied example inputs per operation name, for contract tests.
     examples: dict[str, list[dict[str, Any]]] = Field(default_factory=dict, max_length=20)
+    # Known-good values by input field name, e.g. {"request_id": ["R-1001"]}. They become contract-test
+    # inputs that hit real records. Limits match what the call shim accepts.
+    known_values: dict[str, list[str]] = Field(default_factory=dict, max_length=20)
+
+    @field_validator("known_values")
+    @classmethod
+    def _check_known_values(cls, value: dict[str, list[str]]) -> dict[str, list[str]]:
+        for field, items in value.items():
+            if not re.fullmatch(r"[a-z][a-z0-9_]{0,30}", field) or not 1 <= len(items) <= 5:
+                raise ValueError("bad known_values")
+            if any(not 1 <= len(i) <= 64 or "=" in i or any(ord(c) < 32 for c in i) for i in items):
+                raise ValueError("bad known_values")
+        return value
 
 
 class RollbackRequest(BaseModel):
@@ -289,10 +304,17 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     @app.post("/v1/admin/systems", status_code=202)
     def onboard(body: OnboardRequest, who: str = Depends(admin)) -> dict[str, Any]:
         p = need_pipeline()
+        # Refuse bad input now: once the work runs in the background there is nobody to tell.
+        try:
+            canonical_url(body.repo_url, settings.local_repo_root)
+        except IngestError:
+            raise HTTPException(422, "repository URL not accepted (use https://github.com/owner/repo)") from None
+        if p.busy(body.system):
+            raise HTTPException(409, "this system is already being processed")
 
         def work():
             try:
-                p.onboard(body.system, body.repo_url, body.examples)
+                p.onboard(body.system, body.repo_url, body.examples, body.known_values)
             except Exception as exc:  # noqa: BLE001 - reported through events
                 log.info("onboarding %s failed: %s", body.system, type(exc).__name__)
 

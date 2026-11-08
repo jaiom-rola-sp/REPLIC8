@@ -90,11 +90,11 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 | `GET /v1/operations` | gateway or admin | Published tools (the dashboard reads this; fields unchanged) plus `output_schema` and `contract_cases` |
 | `POST /v1/operations/{tool}` | gateway or admin | Call a tool: `{"input": {...}}` returns `{"result", "provenance"}` |
 | `GET /v1/openapi.json` | gateway or admin | OpenAPI 3.1 for the enabled tools |
-| `GET /v1/graph` | gateway or admin | `{"nodes", "edges"}`; edges of type `data` come from real field names, with `evidence` `schema` or `recorded` |
-| `GET /v1/events?after=N` | gateway or admin | Activity log (onboarded, published, contract_failed, heal_started, heal_saved, rolled_back, ...) |
+| `GET /v1/graph` | gateway or admin | `{"nodes", "edges"}`; edges of type `data` come from real field names, with `evidence` `schema` or `recorded`. `system_links` has one compact entry per pair of systems (shared `fields`, strongest `evidence`, matching `operation_pairs`) and stays small however many operations match; `edges` is capped at 2000 data links and `truncated` is true when the cap was hit |
+| `GET /v1/events?after=N` | gateway or admin | Activity log (onboard_started, onboard_stage, onboarded, published, contract_failed, heal_started, heal_saved, rolled_back, ...) |
 | `GET /v1/systems` | gateway or admin | Each system's current version, tests and rejected operations |
 | `GET /v1/systems/{s}/versions` | gateway or admin | Version history |
-| `POST /v1/admin/systems` | admin | Onboard `{"system", "repo_url", "examples"?}` (runs in the background; watch events) |
+| `POST /v1/admin/systems` | admin | Onboard `{"system", "repo_url", "examples"?, "known_values"?}`. `known_values` maps an input field name to real IDs from the system's data (for example `{"request_id": ["R-1001"]}`); the contract tests use them so they hit real records, and a model-written `pattern` that rejects one is dropped. Returns 422 for a bad URL and 409 if the system is already being processed; otherwise it runs in the background and reports `onboard_stage` events (fetch, detect, build, extract, propose, test, publish), then `published` or `onboard_failed` |
 | `POST /v1/admin/systems/{s}/check` | admin | Check the legacy repo for changes; repair if needed |
 | `POST /v1/admin/systems/{s}/heal` | admin | Start a repair now |
 | `POST /v1/admin/systems/{s}/rollback` | admin | Serve an older version: `{"version": 1}` |
