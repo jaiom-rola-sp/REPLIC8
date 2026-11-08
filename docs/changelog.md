@@ -7,7 +7,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** Krish Thapa (with Claude)
 - **What changed:** `docs/security.md`: T9 now covers per-token scopes and `validate_call`; the digest-pinning gap is marked done; the tokens gap no longer says there are no scopes. Removed the Photon items (T13, "the network around Photon", and the Photon transport in "not built yet"). Threat numbers are unchanged, so T13 is now unused.
 - **Requirement(s):** FR-4, FR-12 (dropped), FR-13
-- **Commit:** this commit
+- **Commit:** a6b9d06
 
 ## 2026-11-07: Shared validate_call with per-token scopes
 
