@@ -5,9 +5,16 @@ Log every meaningful change to the project. Newest entries go at the top.
 ## 2026-11-08: Grant and remove token scopes at runtime
 
 - **Who:** Krish Thapa (with Claude)
-- **What changed:** New admin-only `POST` and `DELETE /v1/admin/scopes` (`{"token_id", "scope"}`) grant or remove a gateway token's scope without a restart. Changes take effect immediately for REST calls, MCP calls, and the REST and MCP tool lists. Token ids must be 12 lowercase hex characters and belong to a gateway token (admin tokens are unscoped); scopes must be `ns.*` or `ns.tool`. A runtime grant never covers a write operation: granting a write tool by name returns 422, and a namespace grant opens only its reads; writes still need a `REPLIC8_TOKEN_SCOPES` scope and `REPLIC8_WRITE_OPS`. Every grant, removal and refused write grant is audit-logged with the admin's token id. Changes live in memory, so `REPLIC8_TOKEN_SCOPES` stays the starting config after a restart. Added a `REPLIC8_TOKEN_SCOPES` example to `backend/.env.example`, the routes to `backend/README.md`, and `DELETE` to the CORS methods. 20 tests in `tests/test_scope_admin.py`.
+- **What changed:** New admin-only `POST` and `DELETE /v1/admin/scopes` (`{"token_id", "scope"}`) grant or remove a gateway token's scope without a restart. Changes take effect immediately for REST calls, MCP calls, and the REST and MCP tool lists. Token ids must be 12 lowercase hex characters and belong to a gateway token (admin tokens are unscoped); scopes must be `ns.*` or `ns.tool`. A runtime grant never covers a write operation: granting a write tool by name returns 422, and a namespace grant opens only its reads; writes still need a `REPLIC8_TOKEN_SCOPES` scope and `REPLIC8_WRITE_OPS`. Every grant, removal and refused write grant is audit-logged with the admin's token id. Changes live in memory, so `REPLIC8_TOKEN_SCOPES` stays the starting config after a restart. In `backend/.env.example`, kept Aryan's `REPLIC8_TOKEN_SCOPES` block and pointed its "then a restart" line at the new endpoints. Added the routes to `backend/README.md`, and `DELETE` to the CORS methods. 20 tests in `tests/test_scope_admin.py`.
 - **Requirement(s):** FR-13
 - **Commit:** 803e4c7
+
+## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
+
+- **Who:** Aryan Mandapati
+- **What changed:** Added `docs/demo.md`: pre-show checklist (health, seeding with `onboard-demo.sh`, pinned image, CORS), a timed 4-minute talk track using only built features (dashboard, MCP agent, live COBOL break and repair, roll back), what to do if something fails, and the reset steps. Recorded an 80-second captioned fallback video of that flow against the real stack (shared with the team, not committed). `deploy/README.md`: dropped the remaining Vultr/DigitalOcean note and added the laptop-plus-Cloudflare-quick-tunnel fallback steps. `backend/.env.example`: added `REPLIC8_TOKEN_SCOPES` (quoted, with how to get the token id) and `REPLIC8_LOCAL_REPO_ROOT`. `docs/security.md`: refreshed the known gaps (scopes vs dashboard imports, browser token storage, tunnel exposure, data at rest) and listed the gaps closed since.
+- **Requirement(s):** FR-10, NFR Security
+- **Commit:** this commit
 
 ## 2026-11-07: Hosting is Azure only
 
