@@ -3,8 +3,8 @@ Initial Commit:
 ## Using this repo with Obsidian
 
 1. Install [Obsidian](https://obsidian.md).
-2. Clone the repo: `git clone https://github.com/jaiom-rola-sp/zero-day.git ~/Development/zero-day`
-3. In Obsidian, open **Manage vaults → Open folder as vault** and select the `zero-day` folder.
+2. Clone the repo: `git clone https://github.com/jaiom-rola-sp/REPLIC8.git`
+3. In Obsidian, open **Manage vaults → Open folder as vault** and select the cloned `REPLIC8` folder.
 4. Pull the latest changes before you start: `git pull`.
 
 Obsidian's settings live in `.obsidian/`, which is git-ignored, so each person keeps their own layout and plugins.
