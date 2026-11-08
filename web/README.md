@@ -33,7 +33,21 @@ Gateway settings can load real health and operation-registry data from an existi
 REPLIC8_GATEWAY_URL=http://127.0.0.1:9000 npm run dev
 ```
 
-Enter the gateway bearer token in the app’s Settings dialog. It is kept in browser session storage, never in source files or build variables. A connected dashboard reads `GET /health`, `GET /v1/operations` and `GET /v1/events`.
+Enter the gateway bearer token in the app’s Settings dialog. It is kept in browser session storage, never in source files or build variables. A connected dashboard reads `GET /health`, `GET /v1/operations`, `GET /v1/graph` and `GET /v1/systems/{system}/versions`, and follows `GET /v1/events` every two seconds for the activity feed.
+
+### Versions, repair and the activity feed
+
+Open a system (Systems, then its card) while connected and the detail panel shows **Versions and repair**:
+- the version history, newest first, with the reason (first import, repaired after a change, repaired on request), the commit and how many tools passed their tests;
+- **Check for changes**: asks the gateway whether the legacy repo moved past the published commit. If it did, a repair starts in the background; if not, the panel says so (no event is logged when nothing changed);
+- **Repair now**: starts a repair directly. It stops right away if the legacy code is unchanged;
+- **Roll back** on any older version.
+
+These need the **admin token**, which the panel asks for once and keeps in memory only. The status line at the top of the panel follows the system's latest event, and the **Activity** screen is the gateway's real event log (the "Run demo workflow" buttons only appear in demo mode). Events that change what is published (published, repair saved, rolled back) reload the operations, the graph and the version history by themselves.
+
+Demo for the repair: change the legacy repo (for example rename `GET-REQUEST` to `FETCH-REQUEST` in the COBOL), click **Check for changes**, and watch change detected, contract test failed, repair started, repair saved, then confirm the tools still answer. Rolling back returns to the first version.
+
+Note: gateway tokens are scoped per system and fail closed. A system you import is not visible to the dashboard's token until an operator adds `<system>.*` to `REPLIC8_TOKEN_SCOPES` and restarts the gateway.
 
 ### Many operations
 

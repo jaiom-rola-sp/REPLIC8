@@ -2,6 +2,21 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Heal and versions in the dashboard, with a real activity feed
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** A system's detail panel now shows its version history and has **Check for changes**, **Repair now** and **Roll back** (admin token kept in memory only), plus a status line that follows the system's latest event. The Activity screen and the overview's recent activity now show the gateway's real event log (polled every 2 s) instead of simulated entries; the "Run demo workflow" buttons are hidden when connected. Events that change what is published reload the operations, graph and versions. New files: `web/src/SystemHealth.jsx`, `web/src/liveEvents.js` (+ test). Corrected `web/README.md`, which claimed the dashboard read `/v1/events` before it did. Found: with scoped tokens, a system imported from the dashboard is invisible to the dashboard's own token until an operator adds its scope (open question in the PRD).
+- **Requirement(s):** FR-7, FR-8, WEB-10
+- **Validation:** 22 web tests and a clean build. Real end-to-end run in headless Chrome against the real backend and real Nemotron, using a local copy of the COBOL system: open the system, check (no change), rename `GET-REQUEST` to `FETCH-REQUEST`, check again, change detected, contract test failed (function no longer found), repair saved as v2 about 10 s later, the tool still answered with the real record served by v2, roll back to v1 worked, and the activity feed showed every step; no page errors. The test system and its files were removed afterwards. Not tested: a repair of a change pushed to a real GitHub repo (the same code path, but the network fetch was not exercised), and a failed repair.
+- **Commit:** not committed yet (awaiting approval)
+
+## 2026-11-07: Plan decisions: languages, heal UI, Connect screen, imports, hosting, architecture
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Recorded the team's planning decisions. PRD: language coverage plan (read any language, run what we can; command-line wrapper, interpreted-language caller, C, Pascal, Python 3, Perl, PHP; the model stays declarative), the dashboard heal and versions experience, new F6 (Dashboard: Connect screen, Try it, Established and Extension import), hosting alternatives, scope rows, open questions, risks. Requirements: FR-6 now Built; FR-9 and FR-11 notes updated; new FR-14 (more languages) and FR-15 (Established import); WEB-10 to WEB-13; decisions. New `docs/architecture.md` (how parent companies use it, where it runs, what it stores, why no database yet, why not SpacetimeDB, where legacy data lives, tenancy, phases). Found while doing this: per-token scopes are fail-closed, so a system imported from the dashboard is invisible to the dashboard's own token until an operator adds its scope (open question in the PRD).
+- **Requirement(s):** FR-6, FR-9, FR-11, FR-14, FR-15, WEB-10 to WEB-13
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Merge Java switch and graph work into the propose prompt
 
 - **Who:** tonia (with Claude Code)

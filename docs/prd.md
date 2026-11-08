@@ -48,6 +48,8 @@ REPLIC8 is the integration layer. It connects **legacy to modern** (A to B, A to
    - **Black-box:** code can't be understood, so we wrap it as a command (args, stdin/stdout) or HTTP service and test it from the outside.
 
    Each operation is labeled `parsed`, `inferred` or `black-box` so users know how much to trust it.
+
+   **Language coverage (decided 2026-11-07, to build).** The promise is *read any old language, run the ones we can build and test*. Reading is the model's job; running needs a free compiler or interpreter in the sandbox, and some languages (RPG, PL/I, mainframe dialects) have none. We add: (a) C and Pascal compilers and Python 3, Perl and PHP interpreters to the sandbox image; (b) a generic caller for interpreted languages, which calls a function by name with JSON arguments; (c) a **command-line wrapper** for any program that runs from a command line, where the model fills in a fixed form (argument template and how to read the output) and REPLIC8 validates it and builds the command. The model never writes code. A language with no toolchain stops at "no supported language yet"; a spec-only mode is not planned.
 3. Nemotron picks which functions to expose and writes the wrapper: an MCP server (the main interface for agents) and a REST API (OpenAPI) with the same tools. Each operation is marked `read` or `write`; **write operations are disabled by default** (FR-13).
 4. Every exposed operation must point to a source location (`file:line`) and pass a contract test against the real legacy code. Operations that fail are not published.
 5. The legacy code runs in a sandbox (Docker), never directly on the host.
@@ -63,13 +65,15 @@ Triggered when a wrapper breaks, meaning its contract tests fail after the legac
 4. Store it as a new version; keep the old one for rollback.
 5. Record each step in the activity log, which the dashboard shows (F5).
 
+**In the dashboard (decided and built 2026-11-07):** each system shows its version history (v1, v2, ... with reason, commit and test results), a **Check for changes** button, a **Repair now** button and a **Roll back to vN** button, plus a live activity feed read from `GET /v1/events`. Detection is by button only, not by timer, so the demo is predictable: edit the legacy repo, click the button, watch the repair, see the new version, and confirm the tools still answer. These actions need the admin token, held in browser memory only.
+
 No screenshots or vision model in v1.
 
 ### F3. Graph visualization (FR-6)
 A web view of the unified API: nodes for companies/systems and operations, edges for shared data and calls between systems (A to B, A to C, B to C). Edges come from matching schemas (real field names/types, e.g. a shared part ID), not LLM guesses.
 
-### F4. Extend (FR-9, stretch)
-Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module.
+### F4. Extend (FR-9)
+Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module. **Decided 2026-11-07:** in the 24-hour build, an extension repo can be imported and registered, and shows in the graph labeled "not run yet". Running extension code is not built.
 
 ### F5. Status updates (FR-12: Photon dropped)
 Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/events`), which the dashboard shows. No texts are sent and nothing is received.
@@ -78,6 +82,15 @@ Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/
 - **Safe content:** identifiers, versions, counts and fixed event kinds only. Never source code, secrets, tokens, or raw customer data.
 - **Non-blocking:** recording an event never stops a conversion or repair.
 - **Noise control:** group repeated failures into one message.
+
+### F6. Dashboard (FR-6, WEB-4, WEB-8 to WEB-13)
+The web app in `web/`. Built: graph of systems, operations and links (collapses for hundreds of operations), operations table, and **Import from GitHub** with live stages and known-good values. Decided 2026-11-07. Heal and versions and the real activity feed are built; the rest is still to build:
+- **Heal and versions:** see F2 (built).
+- **Connect screen** (a new item in the sidebar): the gateway address and copy-paste setup for an agent (Claude Code, a generic MCP client config, a curl example). The token appears as a placeholder, with no "copy with my token" button.
+- **Try it:** on each operation, fill in the inputs from the schema, run a live read-only call, and see the result and where it came from.
+- **Established system import:** import a modern system (like Company A) from GitHub; REPLIC8 reads its OpenAPI file from the repo, lists its operations and shows it as a node in the graph. It is labeled "external, not run by REPLIC8" and is never called.
+- **Extension import:** see F4.
+- **Real activity feed:** replaces the simulated entries.
 
 ## 6. Architecture
 
@@ -119,7 +132,8 @@ Everyone must use these functions.
 | Sandbox | Docker | Isolates untrusted legacy code | |
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
-| Hosting | Vercel (frontend) and one Vultr Ubuntu server with Docker and Caddy (backend) | Simplest for a demo | **Decided 2026-11-08** (`deploy/README.md`) |
+| Hosting | Vercel (frontend) and one Vultr Ubuntu server with Docker and Caddy (backend) | Simplest for a demo | **Decided 2026-11-08** (`deploy/README.md`). Vultr has no free tier (about $0.03 an hour for 2 vCPU / 4 GB, so about $1 a day, unless a promo credit applies). `deploy/vultr/setup.sh` is generic Ubuntu 24.04, so a student-credit VM (Azure for Students or DigitalOcean via the GitHub Student Developer Pack) is an acceptable host (2026-11-07, not yet run elsewhere). Fallback: laptop plus a free Cloudflare quick tunnel. |
+| Sandbox languages | COBOL, Fortran, Java today; adding C, Pascal, Python 3, Perl, PHP | "Read any, run what we can" (F1) | **Decided 2026-11-07**; image size grows (the current image is about 1 GB) |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning | **Dropped 2026-11-08.**
 
 ## 9. Anti-hallucination rules (for humans and AIs)
@@ -135,8 +149,12 @@ Everyone must use these functions.
 | P0 | Modern Company A stand-in plus legacy systems B and C, ingest, generate, verify, gateway, MCP + REST | FR-1 to 5, 10, 11, 13 |
 | P0 | Graph showing A, B, C and their links | FR-6 |
 | P1 | Rename a function/field, auto-repair, new version saved | FR-7, 8 |
+| P1 | Dashboard heal and versions (check, repair, roll back) and a real activity feed | FR-7, 8, WEB-10 |
+| P1 | Connect screen and Try it | WEB-11, WEB-12 |
+| P1 | Language coverage: command-line wrapper, interpreted-language caller, C, Pascal, Python 3, Perl, PHP | FR-11, FR-14 |
+| P1 | Established and Extension import tabs | FR-9, FR-15, WEB-13 |
 | ~~P1~~ | ~~Photon send-only text updates on key events~~ (dropped 2026-11-08) | FR-12 |
-| Stretch | Extension module; extra legacy modules | FR-9 |
+| Stretch | Running extension code; extra legacy modules | FR-9 |
 
 Suggested order: build the demo systems and ingest, then generate and verify, then gateway, then graph, then self-healing, then polish the demo script. Keep each legacy system to 2 or 3 read operations.
 
@@ -148,7 +166,7 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [x] Which cloud provider and who owns the keys? **Decided 2026-11-08:** Vercel (frontend, Jai) and Vultr (backend). Still open: the backend hostname, and who holds the Vultr account and the admin token.
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
   **Proposed 2026-11-08 (in the demo systems):** part ID (e.g. `PMP-2210`) and site region (e.g. `PERMIAN`). See `legacy/README.md`. Team to confirm.
-- [ ] Should each demo legacy system live in its own GitHub repo, so REPLIC8 ingests it by URL? (Currently both are in `legacy/` in this repo.)
+- [x] Should each demo legacy system live in its own GitHub repo, so REPLIC8 ingests it by URL? **Decided 2026-11-07:** yes. `legacy-b-maintenance-cobol` and `legacy-c-inventory-fortran` are published as public repos under `jaiom-rola-sp`. The Java version of C stays in `legacy/` for now; the Fortran repo stands in for C when importing from GitHub.
 - [ ] Where does the "combine B and C" step live: in Company A's agent, or as a cross-system operation inside REPLIC8?
 - [ ] Team roles: who owns ingest, generation, gateway, graph UI, the demo systems?
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine? How are write operations authorized later?
@@ -157,7 +175,10 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [x] Proposed (backend): Nemotron never writes code. **Decided 2026-11-07** after live testing (see requirements decisions). REPLIC8 builds each call itself, so we need a small call shim per language (COBOL, Fortran).
 - [ ] Do the demo legacy systems need a writable database or folder? The sandbox is read-only and offline by default.
 - [ ] Registry history: plain versioned files (built) or also a git commit per version (PRD section 8)?
-- [ ] Who holds the gateway tokens, and do we need per-caller scopes after the demo?
+- [ ] Who holds the gateway tokens, and do we need per-caller scopes after the demo? **Update 2026-11-08:** per-token scopes are built (`REPLIC8_TOKEN_SCOPES`, fail-closed).
+- [ ] **Scopes versus dashboard import (found 2026-11-07).** A system imported from the dashboard is invisible to the dashboard's own token until an operator adds `<namespace>.*` to that token's scopes and restarts. Options: show an honest message after import (minimal); an admin-only "grant scope" action; or an opt-in list of token ids that are granted every newly imported system.
+- [ ] Where do the legacy systems' real data live for a real customer? **Assumed 2026-11-07 (Claude's recommendation, not yet confirmed by the team):** for the hackathon the data sits in the repo. For customers, a small runner inside the customer's network next to the legacy data, connected outbound to a cloud control plane, goes in the roadmap (`docs/architecture.md`).
+- [ ] One deployment per customer or shared hosting? **Assumed 2026-11-07:** one deployment per customer (simplest and safest); the hackathon has one customer, Company A.
 
 ## 12. Risks
 
@@ -166,3 +187,5 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - Generated wrappers can be wrong in subtle ways, which is why tests gate publishing.
 - 24 hours is tight. Cut F4 first, then extra systems.
 - Model API outages or rate limits during the demo. Keep a recorded fallback.
+- Each new language and the command-line wrapper widen what runs in the sandbox and grow the image. Every new runtime needs its own contract tests and a pinned image, and the model must stay declarative (it fills in forms; REPLIC8 builds the commands).
+- Free cloud credits expire or can be refused (cards, student verification, capacity). Keep the laptop plus tunnel fallback ready.
