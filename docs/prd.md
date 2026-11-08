@@ -71,14 +71,12 @@ A web view of the unified API: nodes for companies/systems and operations, edges
 ### F4. Extend (FR-9, stretch)
 Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module.
 
-### F5. Project owner updates via Photon, send-only (FR-12)
-Replic8 texts status updates to approved phone numbers (e.g. the project owner or a manager) through [Photon](https://photon.codes), a messaging API for AI agents that sends over iMessage with SMS/RCS fallback.
+### F5. Status updates, log-only (FR-12 dropped)
+Photon was dropped on 2026-11-07. Status updates are logged only, through `Notifier` and its log-only transport. No texts are sent and nothing is received.
 
-- **Outbound only.** Replic8 never reads replies and never accepts commands over messaging. No inbound webhook is registered, so a text can't trigger any action. This is the "no write access" rule.
-- **Events sent:** system onboarded, wrapper published, failure detected, self-heal started, repair saved as a new version, repair failed or rolled back.
-- **Safe content:** short summaries only. Never source code, secrets, tokens, or raw customer data.
-- **Allowlist:** numbers come from config (env var), not the repo.
-- **Non-blocking:** if Photon is down, log it and keep going. A failed text must never stop a conversion or repair.
+- **Events logged:** system onboarded, wrapper published, failure detected, self-heal started, repair saved as a new version, repair failed or rolled back.
+- **Safe content:** short summaries from fixed templates only. Never source code, secrets, tokens, or raw customer data.
+- **Non-blocking:** a failed notification must never stop a conversion or repair.
 - **Noise control:** group repeated failures into one message.
 
 ## 6. Architecture
@@ -108,7 +106,7 @@ Everyone must use these 4 functions.
 | `validate_call(api_key, tool_name, args)` | Planned | At the start of every gateway route (REST and MCP). | Raises 401 for a bad key, 403 if the tool isn't allowed or is a write operation, 404 if the tool isn't published, 422 for bad input. Logs every call to the audit log. | Security |
 | `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | Each call gets a fresh, locked Docker container (B = GnuCOBOL): no network, read-only, non-root, resource limits, timeout. Images are pinned by digest and never pulled at call time. Raises `SandboxError` (base error) for setup problems. Timeouts and crashes are reported as result fields (`timed_out`, `exit_code`, `output_too_large` on `SandboxResult`) that the error handler reads. Planned subclasses: `OutputSchemaError`, `FunctionMissing`. | Security |
 | `trigger_heal(tool_name, error_info)` | Planned | Called by the error handler only on `OutputSchemaError` or `FunctionMissing`. | A repair must not change a tool's read/write access, and is saved only if contract tests pass. | Backend |
-| `notify(event, *, system, version, count)` (`Notifier` in `backend/replic8/notify.py`) | Built | Call this instead of Photon directly. | Send-only, numbers from the env allowlist, fixed message templates, no code or data in texts, never blocks the pipeline. | Security |
+| `notify(event, *, system, version, count)` (`Notifier` in `backend/replic8/notify.py`) | Built | Call this to report status events. | Log-only (Photon dropped): fixed message templates, no code or data in messages, never blocks the pipeline. | Security |
 
 ## 8. Technology choices
 
@@ -122,7 +120,7 @@ Everyone must use these 4 functions.
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
 | Hosting | One cloud VM running docker compose | Simplest for a demo | **TBD** provider |
-| Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning |
+| Notifications | Log only (`LogTransport` in `backend/replic8/notify.py`) | Photon dropped 2026-11-07; no messaging service needed | |
 
 ## 9. Anti-hallucination rules (for humans and AIs)
 

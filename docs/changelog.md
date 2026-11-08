@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Drop Photon, notifications are log-only
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Docs only. Moved FR-12 to out of scope and added a decision that Photon is dropped and notifications are log-only. Updated PRD F5, the `notify` row in section 7, and the notifications row in technology choices. Removed the Photon part of `CLAUDE.md` rule 6. `notify.py` is unchanged (it already defaults to a log-only transport).
+- **Requirement(s):** FR-12 (dropped)
+- **Commit:** this commit
+
 ## 2026-11-07: PRD subclass cleanup and Windows test skips
 
 - **Who:** Krish Thapa (with Claude)

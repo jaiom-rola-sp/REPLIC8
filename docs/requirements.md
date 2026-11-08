@@ -27,7 +27,6 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 | FR-9 | Extension module: add functionality separate from legacy code | Could | Not started | Stretch |
 | FR-10 | Build the demo: a modern Company A stand-in (own API + agent) and 2 legacy systems (B: oilfield services, C: logistics/manufacturing), each with 2 to 3 read operations | Must | Not started | Languages TBD; cover at least 2 tiers |
 | FR-11 | Language-agnostic ingestion with 3 tiers: parsed, inferred (LLM), black-box (CLI/HTTP wrapper). Label each operation with its tier; every tier must pass contract tests | Must | Not started | "Any language" is the goal, proven on demo languages |
-| FR-12 | Send-only status updates to allowlisted phone numbers (e.g. project owner) via Photon on key events (published, failure, heal start/success/fail). No inbound handling, no secrets or code in messages, a failed send never blocks the pipeline | Should | Not started | Numbers/keys in env vars, not the repo |
 | FR-13 | Operations are marked read or write; write operations are disabled by default and need explicit authorization | Must | Not started | v1 demo is lookups and recommendations only |
 
 ## Non-functional requirements
@@ -43,6 +42,7 @@ Replic8 turns legacy source code from GitHub into an agent-ready API and MCP ser
 - Screen or vision-based healing (Gemini Vision): dropped for v1.
 - Write operations such as purchasing or dispatching in v1.
 - Production-grade multi-tenant hosting.
+- FR-12 (dropped 2026-11-07): send-only status texts via Photon. Notifications are log-only instead.
 
 ## Open questions
 
@@ -60,3 +60,4 @@ See [prd section 11](prd.md#11-open-questions).
 - **2026-11-07:** Replic8 should handle any legacy language. Defined as 3 ingestion tiers (parsed, inferred, black-box) with a confidence label per operation, not a promise that every repo works. Reason: nobody can guarantee "any," but tiers plus mandatory contract tests keep it honest.
 - **2026-11-07:** Project owner notifications go through Photon and are strictly outbound. Reason: no inbound path means no way to trigger actions by text, which keeps the system's write access out of messaging.
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.
+- **2026-11-07:** Photon is dropped. Notifications are log-only: `Notifier` keeps its log-only transport and no texts are sent. FR-12 moved to out of scope.
