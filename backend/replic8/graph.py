@@ -4,6 +4,9 @@ Data edges come only from real field names, never from model opinion (PRD
 section 8): an edge A -> B means a field that operation A returns (in its
 published output schema or its recorded contract outputs) has the same name
 and a compatible type as an input field of operation B in another system.
+
+The result also carries `system_links` (one compact entry per pair of systems: the shared fields, the
+strongest evidence, and how many operation pairs matched) and `truncated` (true when `edges` hit the cap).
 """
 
 from __future__ import annotations
@@ -14,6 +17,10 @@ from .models import Access, Operation, WrapperVersion
 from .registry import Registry
 
 JSON_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean"}
+
+# Operation-to-operation links grow with the square of the operation count (a field like "id" can match
+# everywhere), so the list is capped. `system_links` has one entry per pair of systems and stays small.
+MAX_DATA_EDGES = 2000
 
 
 def _schema_fields(schema: dict[str, Any]) -> dict[str, set[str]]:
@@ -79,14 +86,32 @@ def build_graph(registry: Registry, write_allowlist: frozenset[str] = frozenset(
                           "type": "provides"})
             live.append((op, version))
 
+    inputs = {op.tool: _schema_fields(op.input_schema) for op, _ in live}
+    links: dict[tuple[str, str], dict[str, Any]] = {}
+    drawn = 0
+    truncated = False
     for out_op, out_ver in live:
         produced = output_fields(out_op, out_ver)
         for in_op, _ in live:
             if in_op.namespace == out_op.namespace:
                 continue
-            for field, types in _schema_fields(in_op.input_schema).items():
-                if field in produced and _compatible(produced[field][0], types):
+            matched = [(field, produced[field][1]) for field, types in inputs[in_op.tool].items()
+                       if field in produced and _compatible(produced[field][0], types)]
+            if not matched:
+                continue
+            link = links.setdefault((out_op.namespace, in_op.namespace), {
+                "source": out_op.namespace, "target": in_op.namespace, "fields": set(),
+                "evidence": "schema", "operation_pairs": 0})
+            link["operation_pairs"] += 1
+            for field, evidence in matched:
+                link["fields"].add(field)
+                if evidence == "recorded":
+                    link["evidence"] = "recorded"
+                if drawn < MAX_DATA_EDGES:
+                    drawn += 1
                     edges.append({"id": f"{out_op.tool}->{in_op.tool}:{field}", "source": out_op.tool,
-                                  "target": in_op.tool, "type": "data", "field": field,
-                                  "evidence": produced[field][1]})
-    return {"nodes": nodes, "edges": edges}
+                                  "target": in_op.tool, "type": "data", "field": field, "evidence": evidence})
+                else:
+                    truncated = True
+    system_links = [{**link, "fields": sorted(link["fields"])} for _, link in sorted(links.items())]
+    return {"nodes": nodes, "edges": edges, "system_links": system_links, "truncated": truncated}

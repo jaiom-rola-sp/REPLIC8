@@ -73,6 +73,9 @@ class Pipeline:
         with self._guard:
             return self._locks.setdefault(system, threading.Lock())
 
+    def busy(self, system: str) -> bool:
+        return self._lock(system).locked()
+
     def _fetch(self, url: str) -> Checkout:
         try:
             return fetch(url, self.repos_root, local_root=self.settings.local_repo_root,
@@ -92,7 +95,10 @@ class Pipeline:
         out = self.builds_root / repo_key(checkout.url) / checkout.commit
         if out.is_dir() and any(out.iterdir()):
             return
-        result = self.sandbox.build(runtime.image, checkout.path, out, list(runtime.build_argv))
+        try:
+            result = self.sandbox.build(runtime.image, checkout.path, out, list(runtime.build_argv))
+        except FileNotFoundError:
+            raise PipelineError("the sandbox is unavailable (is Docker installed and running?)") from None
         if not result.ok:
             raise PipelineError("legacy code did not compile in the sandbox")
 
@@ -113,7 +119,8 @@ class Pipeline:
     # ---------- onboarding ----------
 
     def onboard(self, system: str, repo_url: str,
-                examples: dict[str, list[dict[str, Any]]] | None = None) -> WrapperVersion:
+                examples: dict[str, list[dict[str, Any]]] | None = None,
+                known_values: dict[str, list[str]] | None = None) -> WrapperVersion:
         """Turn a legacy repo into published, tested operations under namespace `system`."""
         if not NAME.match(system):
             raise PipelineError("system name must match ^[a-z][a-z0-9_]{0,31}$")
@@ -126,10 +133,14 @@ class Pipeline:
         try:
             self.events.add("onboard_started", system=system)
             try:
-                version = self._onboard(system, repo_url, examples or {})
+                version = self._onboard(system, repo_url, examples or {}, known_values or {})
             except (PipelineError, RegistryError) as exc:
                 self.events.add("onboard_failed", system=system, detail=str(exc))
                 raise PipelineError(str(exc)) from exc
+            except Exception as exc:  # noqa: BLE001 - the dashboard must never wait on a silent failure
+                log.exception("onboarding %s hit an unexpected error", system)
+                self.events.add("onboard_failed", system=system, detail="unexpected error, see the gateway log")
+                raise PipelineError("unexpected error") from exc
             self.events.add("onboarded", system=system, version=version.version)
             self.events.add("published", system=system, version=version.version,
                             operations=len(version.operations), rejected=len(version.rejected))
@@ -137,11 +148,20 @@ class Pipeline:
         finally:
             self._lock(system).release()
 
-    def _onboard(self, system: str, repo_url: str, examples: dict[str, list[dict[str, Any]]]) -> WrapperVersion:
+    def _onboard(self, system: str, repo_url: str, examples: dict[str, list[dict[str, Any]]],
+                 known_values: dict[str, list[str]]) -> WrapperVersion:
+        def stage(name: str) -> None:  # the dashboard shows where an import is, or stopped
+            self.events.add("onboard_stage", system=system, detail=name)
+
+        stage("fetch")
         checkout = self._fetch(repo_url)
+        stage("detect")
         runtime = self._runtime(checkout)
+        stage("build")
         self._build(checkout, runtime)
+        stage("extract")
         symbols = self._symbols(checkout)
+        stage("propose")
         gen = propose(self._model(), namespace=system, tier=Tier.parsed, repo_root=checkout.path,
                       image=runtime.image, argv_for=argv_for, symbols=symbols)
 
@@ -149,12 +169,14 @@ class Pipeline:
         tests: dict[str, ContractTestResult] = {}
         cases: dict[str, list[ContractCase]] = {}
         rejected = dict(gen.rejected)
+        stage("test")
         for op in gen.accepted:
             if op.access is Access.write and op.tool not in self.settings.write_allowlist:
                 rejected[op.tool] = "write operation: not tested or published in v1 (FR-13)"
                 continue
-            inputs = _valid_inputs(op, examples.get(op.name, []) + examples.get(op.tool, [])) \
-                + gen.examples.get(op.tool, [])
+            given = _known_inputs(op, known_values) + examples.get(op.name, []) + examples.get(op.tool, [])
+            op = _accept_known(op, given)
+            inputs = _valid_inputs(op, given) + gen.examples.get(op.tool, [])
             run = run_contract(self.executor, op, checkout.url, checkout.commit, inputs, learn_schema=True)
             tests[op.tool], cases[op.tool] = run.result, run.cases
             if run.output_schema is not None:
@@ -163,6 +185,7 @@ class Pipeline:
             candidates.append(op)
             if not run.result.passed:
                 self.events.add("contract_failed", system=system, tool=op.tool, detail=run.result.detail)
+        stage("publish")
         return self.registry.publish(system, checkout.url, checkout.commit, candidates, tests, cases,
                                      rejected=rejected, reason="onboarded")
 
@@ -304,6 +327,38 @@ class Pipeline:
                     self.check_for_changes(system)
                 except Exception:  # noqa: BLE001
                     log.exception("change check failed for %s", system)
+
+
+def _known_inputs(op: Operation, known: dict[str, list[str]], limit: int = 3) -> list[dict[str, Any]]:
+    """Inputs built from the operator's known-good values, for operations where every field has some."""
+    fields = list(op.input_schema.get("properties", {}))
+    if not fields or any(f not in known for f in fields):
+        return []
+    rounds = min(limit, max(len(known[f]) for f in fields))
+    return [{f: known[f][i % len(known[f])] for f in fields} for i in range(rounds)]
+
+
+def _accept_known(op: Operation, inputs: list[Any]) -> Operation:
+    """The operator vouches that these values are real, so a model-written `pattern` that rejects one
+    is wrong: drop that pattern. Types and lengths stay, and the call shim still rejects control
+    characters and "=", so this does not loosen what reaches the legacy program."""
+    props = op.input_schema.get("properties", {})
+    drop: set[str] = set()
+    for field, spec in props.items():
+        if not (isinstance(spec, dict) and "pattern" in spec):
+            continue
+        strict = Draft202012Validator(spec)
+        loose = Draft202012Validator({k: v for k, v in spec.items() if k != "pattern"})
+        for item in inputs:
+            value = item.get(field) if isinstance(item, dict) else None
+            if isinstance(value, str) and not strict.is_valid(value) and loose.is_valid(value):
+                drop.add(field)
+                break
+    if not drop:
+        return op
+    schema = {**op.input_schema, "properties": {
+        f: ({k: v for k, v in s.items() if k != "pattern"} if f in drop else s) for f, s in props.items()}}
+    return op.model_copy(update={"input_schema": schema})
 
 
 def _valid_inputs(op: Operation, inputs: list[Any]) -> list[dict[str, Any]]:

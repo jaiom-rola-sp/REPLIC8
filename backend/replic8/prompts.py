@@ -141,7 +141,10 @@ RULES = """Rules:
 - "access" is "write" if the function creates, changes, deletes, sends, or orders anything;
   otherwise "read". When unsure, use "write".
 - "input_schema" and "output_schema" are JSON Schema objects with "type": "object". Make input
-  schemas strict: "additionalProperties": false, string lengths and patterns where obvious.
+  schemas strict: "additionalProperties": false and a "maxLength" on every string. Do not add a
+  "pattern" unless the code itself enforces that exact format. Real IDs often contain hyphens, dots
+  or slashes (for example R-1001, PMP-2210), so never exclude them. REPLIC8 already rejects control
+  characters and "=" before anything reaches the legacy program.
 - "examples" is up to 3 realistic input objects for contract tests. Each must match input_schema.
   Use values that look like the ones the code works with.
 - Input field names must match what the program reads, in lower case with underscores
