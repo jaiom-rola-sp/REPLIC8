@@ -33,7 +33,7 @@ def build_mcp(registry: Registry, validator: Validator, executor: Executor,
         for tool, (op, version) in sorted(registry.live_operations().items()):
             if op.access is Access.write and tool not in validator.settings.write_allowlist:
                 continue
-            if not validator.allowed(who, tool):
+            if not validator.allowed(who, tool, write=op.access is Access.write):
                 continue
             tools.append(types.Tool(
                 name=tool,

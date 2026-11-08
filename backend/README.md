@@ -98,6 +98,8 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 | `POST /v1/admin/systems/{s}/check` | admin | Check the legacy repo for changes; repair if needed |
 | `POST /v1/admin/systems/{s}/heal` | admin | Start a repair now |
 | `POST /v1/admin/systems/{s}/rollback` | admin | Serve an older version: `{"version": 1}` |
+| `POST /v1/admin/scopes` | admin | Grant a gateway token a scope now: `{"token_id": "0123456789ab", "scope": "inventory.*"}`. Takes effect immediately for REST, MCP and tool lists; returns the token's `scopes`. A runtime grant never covers a write operation (granting one returns 422). Logged to the audit log with the admin's token id. Kept in memory: a restart goes back to `REPLIC8_TOKEN_SCOPES` |
+| `DELETE /v1/admin/scopes` | admin | Remove a scope now, configured or granted, same body. Removes exactly that entry |
 
 ## How trust works
 

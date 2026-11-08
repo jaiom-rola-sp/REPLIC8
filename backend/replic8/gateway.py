@@ -14,6 +14,8 @@ Routes
   POST /v1/admin/systems/{s}/heal       start a repair            (admin token)
   POST /v1/admin/systems/{s}/check      check for code changes    (admin token)
   POST /v1/admin/systems/{s}/rollback   move to an older version  (admin token)
+  POST /v1/admin/scopes                 grant a token a scope now (admin token)
+  DELETE /v1/admin/scopes               remove a token's scope now (admin token)
 
 Security posture:
 - Every route except /health needs a bearer token. Gateway tokens read and call;
@@ -84,6 +86,13 @@ class OnboardRequest(BaseModel):
 
 class RollbackRequest(BaseModel):
     version: int = Field(ge=1)
+
+
+class ScopeRequest(BaseModel):
+    """A token id (as in the audit log) and a scope (`ns.*` or `ns.tool`). Validator checks the formats."""
+    model_config = {"extra": "forbid"}
+    token_id: str = Field(max_length=64)
+    scope: str = Field(max_length=128)
 
 
 class McpSlash:
@@ -215,7 +224,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     app.add_middleware(McpSlash)
     if settings.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
-                           allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+                           allow_methods=["GET", "POST", "DELETE"], allow_headers=["Authorization", "Content-Type"])
     bearer = HTTPBearer(auto_error=False)
 
     def _key(creds: HTTPAuthorizationCredentials | None) -> str:
@@ -256,7 +265,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     def list_operations(who: str = Depends(reader)) -> dict[str, Any]:
         return {"operations": [_operation_view(tool, op, version, settings)
                                for tool, (op, version) in sorted(registry.live_operations().items())
-                               if validator.allowed(who, tool)]}
+                               if validator.allowed(who, tool, write=op.access is Access.write)]}
 
     @app.post("/v1/operations/{tool}")
     def call_operation(tool: str, body: CallRequest,
@@ -342,6 +351,16 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
             return _version_view(p.rollback(system, body.version))
         except RegistryError:
             raise HTTPException(404, "unknown version") from None
+
+    @app.post("/v1/admin/scopes")
+    def grant_scope(body: ScopeRequest, who: str = Depends(admin)) -> dict[str, Any]:
+        scopes, changed = validator.grant_scope(who, body.token_id, body.scope)
+        return {"token_id": body.token_id, "scopes": sorted(scopes), "changed": changed}
+
+    @app.delete("/v1/admin/scopes")
+    def remove_scope(body: ScopeRequest, who: str = Depends(admin)) -> dict[str, Any]:
+        scopes, changed = validator.remove_scope(who, body.token_id, body.scope)
+        return {"token_id": body.token_id, "scopes": sorted(scopes), "changed": changed}
 
     app.mount("/mcp", McpAuth(mcp_app, validator))
     return app
