@@ -2,13 +2,45 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Deep dive doc
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** New `docs/deep-dive.md` explains each feature and what the backend does: the fetch to publish path, how real answers are recorded and output rules learned (with an example), the guard, the three callers, every call's checks, the sandbox, the graph, self-repair, versions, modes, access and the activity feed, plus a "where to look when something breaks" table. Linked from the README.
+- **Requirement(s):** none (docs only)
+- **Validation:** Each claim was checked against `contracts.py`, `guard.py`, `sandbox.py`, `graph.py`, `pipeline.py`, `ingest.py` and `gateway.py`.
+- **Commit:** not committed yet (awaiting approval)
+
+## 2026-11-08: README explains the functionality
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** `readme.md` gained three sections in one-line bullets: many repos in one API and MCP, how we know it works, and other features.
+- **Requirement(s):** none (docs only)
+- **Validation:** Claims checked against the requirements and code (contract tests, learned schemas, graph links from real outputs, versions pinned to a commit, scopes, rollback, modes).
+- **Commit:** not committed yet (awaiting approval)
+
+## 2026-11-08: Live site address recorded
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** The Vercel frontend is live at https://www.replic8.work. Recorded it in the README, the requirements decisions, `deploy/README.md`, `deploy/vm/replic8.env.example` and `docs/demo.md` (the CORS origin the backend must allow). No MCP server config in the repo or in Claude Code points at it: agents use the backend's `/mcp`, whose address is still the teammate's tunnel or VM hostname.
+- **Requirement(s):** none (docs only)
+- **Validation:** Searched the repo for Vercel, CORS and MCP references; no code changes.
+- **Commit:** not committed yet (awaiting approval)
+
+## 2026-11-08: README leads with what we built
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** The top of `readme.md` now says in one-line bullets what REPLIC8 does, what is built, which languages run and how, and the safety basics. The Obsidian and website notes stay below it.
+- **Requirement(s):** none (docs only)
+- **Validation:** Checked each claim against `docs/requirements.md` and the code (languages from `runtimes.py`).
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: More languages, step 5: how a repo is read (functions, programs or both)
 
 - **Who:** Claude (for Jaiom)
 - **What changed:** `POST /v1/admin/systems` takes an optional `mode`: `auto` (default; wraps functions and command-line programs, whatever the repo has), `functions` or `programs`. The mode is saved on each version, so a repair reads the repo the same way (older versions load as `auto`). A new `mode_detected` event says what was found (for example "1 functions, 1 programs: reading as functions and programs") and shows in the activity feed. When a repo has both kinds, each gets half of the 20-operation limit. A mode with nothing to wrap says what the repo does have. Add system has a "How to read this repo" dropdown.
 - **Requirement(s):** FR-14
 - **Validation:** 252 backend tests pass (6 skipped) and 35 web tests pass: what the model is shown follows the mode, the error hints, old versions load, the shared limit. Restart the backend to use it.
-- **Commit:** not committed yet (awaiting approval)
+- **Commit:** `e0007fa`
 
 ## 2026-11-08: More languages, step 4: the command-line wrapper
 
