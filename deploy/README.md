@@ -89,7 +89,7 @@ It onboards Company B (COBOL) and Company C (Java) and prints the four published
 - **To Jai (Vercel):** the gateway address `https://<your hostname>` and the **gateway** token (`REPLIC8_GATEWAY_TOKENS` in the env file). The token is typed into the dashboard's Settings dialog. Never put it in the frontend code or a Vercel environment variable.
 - **To the demo agent:** the MCP URL `https://<your hostname>/mcp` and the gateway token.
 - **Keep the admin token** (`REPLIC8_ADMIN_TOKENS`) on the server only.
-- **New systems need scopes.** Gateway tokens are fail-closed: after onboarding a new system, add `<namespace>.*` to the token's entry in `REPLIC8_TOKEN_SCOPES` and restart, or the dashboard and agents won't see its tools.
+- **New systems need scopes.** Gateway tokens are fail-closed: after onboarding a new system, give the token `<namespace>.*` or the dashboard and agents won't see its tools. For an immediate change with no restart, call `POST /v1/admin/scopes` with an admin token and `{"token_id": "<token id>", "scope": "<namespace>.*"}`; it lasts until the next restart. To make it permanent, add `<namespace>.*` to the token's entry in `REPLIC8_TOKEN_SCOPES` in `/etc/replic8/replic8.env` and restart.
 
 To read a token on the server:
 
