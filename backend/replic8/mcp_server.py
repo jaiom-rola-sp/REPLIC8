@@ -25,10 +25,16 @@ from .validator import Denied, Validator
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("replic8_mcp_key", default="")
 
 
-def build_mcp(registry: Registry, validator: Validator, executor: Executor,
-              on_failure: Callable[[str, SandboxError], Any]) -> Server:
+def build_mcp(resolve: Callable[[str], Any], executor: Executor,
+              on_failure: Callable[[Any, str, SandboxError], Any]) -> Server:
+    """`resolve(token)` returns the tenant (default space or a workspace) the token opens;
+    it has `.registry` and `.validator`. Each MCP request only sees its own tenant's tools."""
+
     async def list_tools(ctx, params) -> types.ListToolsResult:
-        who = validator.authenticate(current_key.get())
+        key = current_key.get()
+        tenant = resolve(key)
+        validator, registry = tenant.validator, tenant.registry
+        who = validator.authenticate(key)
         tools = []
         for tool, (op, version) in sorted(registry.live_operations().items()):
             if op.access is Access.write and tool not in validator.settings.write_allowlist:
@@ -46,15 +52,17 @@ def build_mcp(registry: Registry, validator: Validator, executor: Executor,
 
     async def call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
         args = params.arguments or {}
+        key = current_key.get()
+        tenant = resolve(key)
         try:
-            approved = validator.validate_call(current_key.get(), params.name, args)
+            approved = tenant.validator.validate_call(key, params.name, args)
         except Denied as exc:
             return _error(exc.message)
         op, version = approved.op, approved.version
         try:
             result = await anyio.to_thread.run_sync(executor.call, op, version, args)
         except SandboxError as exc:
-            on_failure(params.name, exc)
+            on_failure(tenant, params.name, exc)
             return _error(str(exc))
         provenance = {"tool": params.name, "tier": op.tier.value, "source": str(op.source),
                       "version": version.version, "source_commit": version.source_commit}
@@ -76,9 +84,9 @@ def _error(message: str) -> types.CallToolResult:
 class McpAuth:
     """ASGI wrapper: require a valid bearer token before any MCP traffic, and pass it to the handlers."""
 
-    def __init__(self, app, validator: Validator):
+    def __init__(self, app, resolve: Callable[[str], Any]):
         self.app = app
-        self.validator = validator
+        self.resolve = resolve
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -86,7 +94,7 @@ class McpAuth:
         auth = dict(scope.get("headers", [])).get(b"authorization", b"").decode("latin-1")
         key = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
         try:
-            self.validator.authenticate(key)
+            self.resolve(key).validator.authenticate(key)
         except Denied as exc:
             body = json.dumps({"detail": exc.message}).encode()
             await send({"type": "http.response.start", "status": exc.status,

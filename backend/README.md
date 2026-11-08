@@ -102,6 +102,11 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 | `POST /v1/admin/systems/{s}/heal` | admin | Start a repair now |
 | `POST /v1/admin/systems/{s}/rollback` | admin | Serve an older version: `{"version": 1}` |
 | `POST /v1/admin/established` | admin | List an established system from its OpenAPI file: `{"system", "repo_url", "parent"?, "spec_path"?}`. Reads OpenAPI 3.x or Swagger 2.0 in YAML or JSON; without `spec_path` it looks for `openapi.yaml/.json` or `swagger.yaml/.json` in the top three folders. Nothing is run and the system is never called. Returns 422 for a bad URL and 409 if the name is used by a legacy system; otherwise it runs in the background and reports `onboard_stage` events (fetch, read, list), then `listed` or `onboard_failed`. Importing again replaces the saved copy |
+| `POST /v1/workspaces` | admin (not a workspace token) | Create a blank workspace: `{"name"?}`. Returns 201 with `id`, `name`, `created_at` and the workspace `token` (`r8w_...`), shown only this once; the gateway keeps only its SHA-256. 503 if workspaces are off |
+| `DELETE /v1/workspaces/{id}` | admin (not a workspace token) | Delete a workspace and everything in it; its token stops working |
+| `GET /v1/workspace` | any token | Which space the token opens: `{"kind": "workspace", "id", "name", "created_at"}` or `{"kind": "default", "workspaces_enabled"}` |
+
+**Workspaces.** Every route above (REST and MCP) also takes a workspace token. It sees only its own workspace (systems, versions, events, established systems, graph) and may use the `admin` routes there. Work is saved in `<data_dir>/workspaces/<id>/` and comes back after a restart. A new workspace starts blank.
 
 ## How trust works
 

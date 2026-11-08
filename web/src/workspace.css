@@ -1,0 +1,12 @@
+/* Workspaces: the token box shown once, and the blank screen when nothing is open. */
+.dash-ws-tabs{margin-top:22px}
+.dash-ws-tabs .dash-tab{display:inline-flex;align-items:center;gap:6px}
+.dash-ws-token{display:flex;gap:10px;align-items:center;margin:20px 0;padding:12px;border:1px solid #505050;border-radius:5px;background:#131313}
+.dash-ws-token code{flex:1;min-width:0;overflow-wrap:anywhere;font:11px/1.6 'IBM Plex Mono',monospace;color:#f2f2f2;user-select:all}
+.dash-ws-token .dash-secondary-button{flex:none}
+.dash-modal>.dash-primary-button{width:100%;padding:12px;margin-top:8px}
+.dash-ws-blank{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 20px;border:1px dashed #3a3a3a;border-radius:8px;color:#9a9a9a}
+.dash-ws-blank h2{font-size:20px;letter-spacing:0;color:#e6e6e6;margin:18px 0 8px;font-weight:400}
+.dash-ws-blank p{max-width:440px;font-size:11px;line-height:1.8;margin:0 0 24px}
+.dash-ws-blank-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+@media (max-width:640px){.dash-ws-blank{padding:50px 16px}.dash-ws-blank-actions{flex-direction:column;width:100%}.dash-ws-blank-actions button{justify-content:center}}

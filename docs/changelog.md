@@ -2,6 +2,15 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Workspaces: start blank, leave, come back with a token
+
+- **Who:** Claude (for Aryan)
+- **What changed:** The gateway can hold workspaces. `POST /v1/workspaces` (admin token) creates a blank one and returns its token (`r8w_...`) once; only a hash is stored. That token opens only its own systems, versions, activity and established systems over REST and MCP, and can import, check, repair and roll back there. Everything is saved in `<data_dir>/workspaces/<id>/`, and the activity log now reloads from disk, so a workspace comes back whole after a restart. The dashboard opens blank (example data removed) with **Start a new workspace** and **Open a workspace**; the new token is shown once with Copy and an "I've saved it" check; **Leave workspace** goes back to blank. New files: `backend/replic8/workspaces.py`, `web/src/WorkspaceAccess.jsx`, `web/src/workspace.js`, `web/src/workspace.css`; small wiring in `gateway.py`, `mcp_server.py`, `main.py`, `events.py`, `Dashboard.jsx`.
+- **Requirement(s):** FR-16, WEB-14
+- **Validation:** 265 backend tests pass, 8 new in `test_workspaces.py` (admin-only creation, hashed tokens, isolation over REST and MCP, deleted tokens refused, activity log reload, and a Docker run: import COBOL into a workspace, restart, reopen, call returns PMP-2210). 41 web tests pass, 6 new. Browser run against the real stack with Nemotron: create, import, leave (blank), restart backend, reopen with the token (2 operations, 6 activity rows, check works without asking for an admin token); a wrong token is refused.
+- **Open:** One of three live imports in testing failed its contract tests (the model's proposal); importing again worked.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: GitHub imports work on Windows
 
 - **Who:** Claude (for Toni)
@@ -40,8 +49,6 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** The top of `readme.md` now says in one-line bullets what REPLIC8 does, what is built, which languages run and how, and the safety basics. The Obsidian and website notes stay below it.
 - **Requirement(s):** none (docs only)
 - **Validation:** Checked each claim against `docs/requirements.md` and the code (languages from `runtimes.py`).
-- **Commit:** not committed yet (awaiting approval)
-
 ## 2026-11-08: More languages, step 5: how a repo is read (functions, programs or both)
 
 - **Who:** Claude (for Jaiom)

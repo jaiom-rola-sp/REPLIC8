@@ -37,6 +37,25 @@ class EventLog:
         self._path = (data_dir / "events.jsonl") if data_dir else None
         if self._path:
             self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._reload(keep)
+
+    def _reload(self, keep: int) -> None:
+        """After a restart, bring back the recent history so a reopened workspace shows its activity.
+        Only well-formed events of known kinds are kept; ids continue from the highest seen."""
+        if not self._path.is_file():
+            return
+        recent: deque[dict[str, Any]] = deque(maxlen=keep)
+        with self._path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(event, dict) and isinstance(event.get("id"), int) and event.get("kind") in KINDS:
+                    recent.append(event)
+        self._events.extend(recent)
+        if recent:
+            self._next = max(e["id"] for e in recent) + 1
 
     def add(self, kind: str, *, system: str = "", tool: str = "", version: int | None = None,
             detail: str = "", **counts: int) -> dict[str, Any]:

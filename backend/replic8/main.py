@@ -13,6 +13,7 @@ import os
 from fastapi import FastAPI
 
 from .config import Settings
+from .established import Catalog, EstablishedImporter
 from .events import EventLog
 from .executor import Executor
 from .gateway import create_app
@@ -21,6 +22,7 @@ from .pipeline import Pipeline
 from .registry import Registry
 from .runtimes import pin_local_image
 from .sandbox import Sandbox
+from .workspaces import Tenant, WorkspaceStore, WorkspaceValidator
 
 log = logging.getLogger("replic8")
 
@@ -42,7 +44,21 @@ def create(settings: Settings | None = None) -> FastAPI:
         model = None
     events = EventLog(data)
     pipeline = Pipeline(settings, registry, sandbox, executor, model, events)
-    return create_app(settings, registry, executor, pipeline=pipeline, events=events)
+
+    # Workspaces: each one gets its own registry, event log and catalog under
+    # <data_dir>/workspaces/<id>/, and shares the sandbox, model and repo clones.
+    store = WorkspaceStore(data)
+
+    def build_workspace(workspace_id, folder) -> Tenant:
+        ws_registry, ws_events, ws_catalog = Registry(folder), EventLog(folder), Catalog(folder)
+        return Tenant(id=workspace_id, registry=ws_registry, events=ws_events,
+                      validator=WorkspaceValidator(settings, ws_registry, workspace_id, store),
+                      catalog=ws_catalog, importer=EstablishedImporter(settings, ws_catalog, ws_registry, ws_events),
+                      pipeline=Pipeline(settings, ws_registry, sandbox, executor, model, ws_events),
+                      is_workspace=True)
+
+    return create_app(settings, registry, executor, pipeline=pipeline, events=events,
+                      workspaces=store, build_workspace=build_workspace)
 
 
 def main() -> None:

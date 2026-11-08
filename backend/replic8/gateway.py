@@ -35,7 +35,8 @@ import contextlib
 import logging
 import re
 import threading
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any, Callable, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +53,7 @@ from .graph import build_graph
 from .ingest import IngestError
 from .sources import canonical_url
 from .mcp_server import McpAuth, build_mcp
+from .workspaces import Tenant, Tenants, WorkspaceStore
 from .models import NAME, Access
 from .registry import Registry, RegistryError
 from .sandbox import SandboxError
@@ -192,23 +194,33 @@ def openapi_for(registry: Registry, settings: Settings) -> dict[str, Any]:
             "paths": paths}
 
 
+class WorkspaceRequest(BaseModel):
+    name: str = Field(default="", max_length=60)
+
+
 def create_app(settings: Settings, registry: Registry, executor: Executor, *,
-               pipeline=None, events: EventLog | None = None, catalog: Catalog | None = None) -> FastAPI:
+               pipeline=None, events: EventLog | None = None, catalog: Catalog | None = None,
+               workspaces: WorkspaceStore | None = None,
+               build_workspace: Callable[[str, Path], Tenant] | None = None) -> FastAPI:
+    """Without `workspaces`, there is one shared space (the gateway's configured tokens).
+    With `workspaces` and `build_workspace`, workspace tokens open their own spaces too."""
     if not settings.gateway_tokens:
         raise RuntimeError("REPLIC8_GATEWAY_TOKENS is empty; refusing to start an open gateway")
     settings.validate()
-    validator = Validator(settings, registry)
     events = events or (pipeline.events if pipeline is not None else EventLog())
     catalog = catalog or Catalog(settings.data_dir)
-    importer = EstablishedImporter(settings, catalog, registry, events)
+    default = Tenant(id="default", registry=registry, events=events, validator=Validator(settings, registry),
+                     catalog=catalog, importer=EstablishedImporter(settings, catalog, registry, events),
+                     pipeline=pipeline)
+    tenants = Tenants(default, workspaces, build_workspace)
 
-    def on_failure(tool: str, exc: SandboxError) -> None:
-        if pipeline is not None:
-            pipeline.trigger_heal(tool, exc)
+    def on_failure(t: Tenant, tool: str, exc: SandboxError) -> None:
+        if t.pipeline is not None:
+            t.pipeline.trigger_heal(tool, exc)
         else:
-            events.add("call_failed", system=tool.split(".", 1)[0], tool=tool, detail=type(exc).__name__)
+            t.events.add("call_failed", system=tool.split(".", 1)[0], tool=tool, detail=type(exc).__name__)
 
-    mcp = build_mcp(registry, validator, executor, on_failure)
+    mcp = build_mcp(tenants.for_token, executor, on_failure)
     mcp_app = mcp.streamable_http_app(
         streamable_http_path="/", stateless_http=True, json_response=True,
         transport_security=TransportSecuritySettings(
@@ -231,27 +243,41 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     app.add_middleware(McpSlash)
     if settings.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
-                           allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+                           allow_methods=["GET", "POST", "DELETE"], allow_headers=["Authorization", "Content-Type"])
     bearer = HTTPBearer(auto_error=False)
 
     def _key(creds: HTTPAuthorizationCredentials | None) -> str:
         return creds.credentials if creds and creds.scheme.lower() == "bearer" else ""
 
-    def reader(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
-        return validator.authenticate(_key(creds))
+    def reader(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> tuple[Tenant, str]:
+        token = _key(creds)
+        t = tenants.for_token(token)
+        return t, t.validator.authenticate(token)
 
-    def admin(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
-        return validator.authenticate(_key(creds), admin=True)
+    def admin(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> tuple[Tenant, str]:
+        # In a workspace, its own token is the owner and may run admin actions there.
+        token = _key(creds)
+        t = tenants.for_token(token)
+        return t, t.validator.authenticate(token, admin=True)
 
-    def need_pipeline():
-        if pipeline is None:
+    def master(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
+        """Only the gateway's admin token (never a workspace token) manages workspaces."""
+        if not tenants.enabled:
+            raise HTTPException(503, "workspaces are not enabled on this gateway")
+        token = _key(creds)
+        if workspaces.resolve(token) is not None:
+            raise HTTPException(403, "use the gateway admin token to manage workspaces")
+        return default.validator.authenticate(token, admin=True)
+
+    def need_pipeline(t: Tenant):
+        if t.pipeline is None:
             raise HTTPException(503, "pipeline is not configured on this gateway")
-        return pipeline
+        return t.pipeline
 
-    def need_system(system: str) -> str:
+    def need_system(t: Tenant, system: str) -> str:
         if not NAME.match(system):
             raise HTTPException(404, "unknown system")
-        if registry.current(system) is None:
+        if t.registry.current(system) is None:
             raise HTTPException(404, "unknown system")
         return system
 
@@ -268,86 +294,118 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.post("/v1/workspaces", status_code=201)
+    def create_workspace(body: WorkspaceRequest | None = None, who: str = Depends(master)) -> dict[str, Any]:
+        workspace_id, token = workspaces.create((body.name if body else "") or "")
+        return {**workspaces.info(workspace_id), "token": token,
+                "note": "Save this token: it opens this workspace and can't be shown again."}
+
+    @app.delete("/v1/workspaces/{workspace_id}")
+    def delete_workspace(workspace_id: str, who: str = Depends(master)) -> dict[str, Any]:
+        try:
+            deleted = workspaces.delete(workspace_id)
+        except ValueError:
+            deleted = False
+        if not deleted:
+            raise HTTPException(404, "unknown workspace")
+        tenants.forget(workspace_id)
+        return {"deleted": workspace_id}
+
+    @app.get("/v1/workspace")
+    def current_workspace(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        t, _ = ctx
+        if t.is_workspace:
+            return {"kind": "workspace", **workspaces.info(t.id)}
+        return {"kind": "default", "workspaces_enabled": tenants.enabled}
+
     @app.get("/v1/operations")
-    def list_operations(who: str = Depends(reader)) -> dict[str, Any]:
+    def list_operations(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        t, who = ctx
         return {"operations": [_operation_view(tool, op, version, settings)
-                               for tool, (op, version) in sorted(registry.live_operations().items())
-                               if validator.allowed(who, tool)]}
+                               for tool, (op, version) in sorted(t.registry.live_operations().items())
+                               if t.validator.allowed(who, tool)]}
 
     @app.post("/v1/operations/{tool}")
     def call_operation(tool: str, body: CallRequest,
                        creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict[str, Any]:
-        approved = validator.validate_call(_key(creds), tool, body.input)
+        token = _key(creds)
+        t = tenants.for_token(token)
+        approved = t.validator.validate_call(token, tool, body.input)
         op, version = approved.op, approved.version
         try:
             result = executor.call(op, version, body.input)
         except SandboxError as exc:
-            on_failure(tool, exc)
+            on_failure(t, tool, exc)
             raise HTTPException(exc.status, str(exc)) from None
         return {"result": result, "provenance": {
             "tool": tool, "tier": op.tier.value, "source": str(op.source),
             "version": version.version, "source_commit": version.source_commit}}
 
     @app.get("/v1/openapi.json")
-    def tools_openapi(who: str = Depends(reader)) -> dict[str, Any]:
-        return openapi_for(registry, settings)
+    def tools_openapi(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        return openapi_for(ctx[0].registry, settings)
 
     @app.get("/v1/graph")
-    def graph(who: str = Depends(reader)) -> dict[str, Any]:
-        return build_graph(registry, settings.write_allowlist, catalog)
+    def graph(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        t = ctx[0]
+        return build_graph(t.registry, settings.write_allowlist, t.catalog)
 
     @app.get("/v1/events")
     def list_events(after: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500),
-                    who: str = Depends(reader)) -> dict[str, Any]:
-        return {"events": events.since(after, limit)}
+                    ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        return {"events": ctx[0].events.since(after, limit)}
 
     @app.get("/v1/systems")
-    def systems(who: str = Depends(reader)) -> dict[str, Any]:
+    def systems(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        t = ctx[0]
         out = []
-        for system in registry.systems():
-            current = registry.current(system)
+        for system in t.registry.systems():
+            current = t.registry.current(system)
             if current is not None:
-                out.append({**_version_view(current), "versions": registry.versions(system)})
+                out.append({**_version_view(current), "versions": t.registry.versions(system)})
         return {"systems": out}
 
     @app.get("/v1/systems/{system}/versions")
-    def versions(system: str, who: str = Depends(reader)) -> dict[str, Any]:
-        need_system(system)
-        current = registry.current(system)
+    def versions(system: str, ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        t = ctx[0]
+        need_system(t, system)
+        current = t.registry.current(system)
         return {"current": current.version if current else None,
-                "versions": [_version_view(registry.load(system, v)) for v in registry.versions(system)]}
+                "versions": [_version_view(t.registry.load(system, v)) for v in t.registry.versions(system)]}
 
     @app.get("/v1/established")
-    def established(who: str = Depends(reader)) -> dict[str, Any]:
-        return {"systems": [entry.view() for entry in catalog.all()]}
+    def established(ctx: tuple[Tenant, str] = Depends(reader)) -> dict[str, Any]:
+        return {"systems": [entry.view() for entry in ctx[0].catalog.all()]}
 
     @app.post("/v1/admin/established", status_code=202)
-    def import_established(body: EstablishedRequest, who: str = Depends(admin)) -> dict[str, Any]:
+    def import_established(body: EstablishedRequest, ctx: tuple[Tenant, str] = Depends(admin)) -> dict[str, Any]:
+        t = ctx[0]
         try:
             canonical_url(body.repo_url, settings.local_repo_root)
         except IngestError:
             raise HTTPException(422, "repository URL not accepted (use https://github.com/owner/repo)") from None
-        if legacy_name_taken(registry, body.system) or (pipeline is not None and pipeline.busy(body.system)):
+        if legacy_name_taken(t.registry, body.system) or (t.pipeline is not None and t.pipeline.busy(body.system)):
             raise HTTPException(409, "that name is already used by a legacy system")
-        if importer.busy(body.system):
+        if t.importer.busy(body.system):
             raise HTTPException(409, "this system is already being processed")
 
         def work():
             try:
-                importer.run(body.system, body.repo_url, parent=body.parent, spec_path=body.spec_path)
+                t.importer.run(body.system, body.repo_url, parent=body.parent, spec_path=body.spec_path)
             except EstablishedError as exc:  # reported through events
                 log.info("listing %s failed: %s", body.system, exc)
             except Exception:  # noqa: BLE001
                 log.exception("listing %s failed", body.system)
-                events.add("onboard_failed", system=body.system, detail="internal error")
+                t.events.add("onboard_failed", system=body.system, detail="internal error")
 
         threading.Thread(target=work, name=f"established-{body.system}", daemon=True).start()
         return {"status": "started", "system": body.system, "watch": "/v1/events"}
 
     @app.post("/v1/admin/systems", status_code=202)
-    def onboard(body: OnboardRequest, who: str = Depends(admin)) -> dict[str, Any]:
-        p = need_pipeline()
-        if catalog.get(body.system) is not None or importer.busy(body.system):
+    def onboard(body: OnboardRequest, ctx: tuple[Tenant, str] = Depends(admin)) -> dict[str, Any]:
+        t = ctx[0]
+        p = need_pipeline(t)
+        if t.catalog.get(body.system) is not None or t.importer.busy(body.system):
             raise HTTPException(409, "that name is already used by an established system")
         # Refuse bad input now: once the work runs in the background there is nobody to tell.
         try:
@@ -367,26 +425,29 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
         return {"status": "started", "system": body.system, "watch": "/v1/events"}
 
     @app.post("/v1/admin/systems/{system}/heal", status_code=202)
-    def heal(system: str, who: str = Depends(admin)) -> dict[str, Any]:
-        p = need_pipeline()
-        need_system(system)
+    def heal(system: str, ctx: tuple[Tenant, str] = Depends(admin)) -> dict[str, Any]:
+        t = ctx[0]
+        p = need_pipeline(t)
+        need_system(t, system)
         threading.Thread(target=p._heal_quietly, args=(system, "manual"), daemon=True).start()
         return {"status": "started", "system": system, "watch": "/v1/events"}
 
     @app.post("/v1/admin/systems/{system}/check")
-    def check(system: str, who: str = Depends(admin)) -> dict[str, Any]:
-        p = need_pipeline()
-        need_system(system)
+    def check(system: str, ctx: tuple[Tenant, str] = Depends(admin)) -> dict[str, Any]:
+        t = ctx[0]
+        p = need_pipeline(t)
+        need_system(t, system)
         return {"system": system, "change_detected": p.check_for_changes(system)}
 
     @app.post("/v1/admin/systems/{system}/rollback")
-    def rollback(system: str, body: RollbackRequest, who: str = Depends(admin)) -> dict[str, Any]:
-        p = need_pipeline()
-        need_system(system)
+    def rollback(system: str, body: RollbackRequest, ctx: tuple[Tenant, str] = Depends(admin)) -> dict[str, Any]:
+        t = ctx[0]
+        p = need_pipeline(t)
+        need_system(t, system)
         try:
             return _version_view(p.rollback(system, body.version))
         except RegistryError:
             raise HTTPException(404, "unknown version") from None
 
-    app.mount("/mcp", McpAuth(mcp_app, validator))
+    app.mount("/mcp", McpAuth(mcp_app, tenants.for_token))
     return app
