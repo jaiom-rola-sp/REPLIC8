@@ -90,6 +90,12 @@ def main():
     binary, command = sys.argv[1], sys.argv[2]
     if not binary.startswith("/build/") or ".." in binary:
         fail("binary must be in /build")
+    # Java programs are packaged as one jar; run them with a small, single-GC JVM
+    # so they fit the sandbox's memory and process limits.
+    run = [binary]
+    if binary.endswith(".jar"):
+        run = ["java", "-XX:+UseSerialGC", "-XX:-UsePerfData", "-XX:TieredStopAtLevel=1",
+               "-Xmx64m", "-Xss512k", "-jar", binary]
     if not re.match(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$", command):
         fail("bad command")
     raw = sys.stdin.read(MAX_IN + 1)
@@ -104,7 +110,7 @@ def main():
 
     stdin = "\n".join([command.upper(), *to_legacy(payload), "END", ""])
     try:
-        proc = subprocess.run([binary], input=stdin.encode(), capture_output=True, timeout=8)
+        proc = subprocess.run(run, input=stdin.encode(), capture_output=True, timeout=8)
     except subprocess.TimeoutExpired:
         fail("legacy program timed out")
     if len(proc.stdout) > MAX_OUT:

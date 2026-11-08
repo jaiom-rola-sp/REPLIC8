@@ -4,7 +4,7 @@
 from jsonschema import Draft202012Validator
 
 from conftest import make_op
-from replic8.pipeline import _accept_known, _known_inputs, _valid_inputs
+from replic8.pipeline import _known_inputs, _usable_known_inputs, _valid_inputs, fit_input_schema
 from replic8.prompts import RULES
 
 
@@ -25,22 +25,22 @@ def test_known_values_become_inputs_only_for_operations_whose_fields_are_all_kno
     assert _known_inputs(op_with({}), known) == []
 
 
-def test_a_pattern_that_rejects_a_real_id_is_dropped_but_length_stays():
+def test_known_values_win_over_a_model_written_pattern():
     op = op_with(STRICT)
-    given = [{"request_id": "R-1001"}]
-    assert _valid_inputs(op, given) == []                     # before: the real ID would be thrown away
-    fixed = _accept_known(op, given)
-    props = fixed.input_schema["properties"]["request_id"]
-    assert "pattern" not in props and props["maxLength"] == 8
-    assert _valid_inputs(fixed, given) == given
-    assert not Draft202012Validator(fixed.input_schema).is_valid({"request_id": "R-1001-TOO-LONG"})  # still bounded
+    given = _usable_known_inputs(op, {"request_id": ["R-1001"]})
+    assert given == [{"request_id": "R-1001"}]
+    assert _valid_inputs(op, given) == []                      # before: the real ID would be thrown away
+    fitted = fit_input_schema(op.input_schema, given)
+    props = fitted["properties"]["request_id"]
+    assert "pattern" not in props and props["maxLength"] == 8  # the pattern goes; the length stays
+    assert _valid_inputs(op.model_copy(update={"input_schema": fitted}), given) == given
+    assert not Draft202012Validator(fitted).is_valid({"request_id": "R-1001-TOO-LONG"})
 
 
-def test_a_pattern_is_kept_when_it_is_not_what_rejects_the_value():
-    op = op_with(STRICT)
-    assert _accept_known(op, [{"request_id": "R-1001-TOO-LONG"}]) is op   # too long: the pattern is not to blame
-    assert _accept_known(op, [{"request_id": "R1001"}]) is op              # already valid: nothing to change
-    assert _accept_known(op, [{"other": "R-1"}, "not a dict", {"request_id": 5}]) is op
+def test_a_known_value_of_the_wrong_type_is_skipped_instead_of_rejecting_the_operation():
+    counted = op_with({"quantity": {"type": "integer"}})
+    assert _usable_known_inputs(counted, {"quantity": ["abc"]}) == []
+    assert _usable_known_inputs(op_with({"request_id": {"type": "string"}}), {"request_id": ["R-1"]}) == [{"request_id": "R-1"}]
 
 
 def test_the_prompt_no_longer_asks_for_patterns_and_warns_about_hyphens():

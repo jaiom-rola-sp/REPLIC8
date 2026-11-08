@@ -40,12 +40,12 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `nemotron.py` | Nemotron client (OpenAI-compatible API): retries, timeouts, key safety | FR-2, FR-7 |
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
-| `extract.py` | tree-sitter symbols for COBOL paragraphs and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
+| `extract.py` | tree-sitter symbols for COBOL paragraphs, Java methods and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
 | `runtimes.py` | Per-language image, build command, and call command (never from the model) | FR-4, FR-11 |
 
 ## Run it
 
-The backend runs anywhere Python 3.11+ and Docker run. Legacy code always runs inside Linux containers, so COBOL and Fortran behave the same on every machine.
+The backend runs anywhere Python 3.11+ and Docker run. Legacy code always runs inside Linux containers, so COBOL and Java (and Fortran) behave the same on every machine.
 
 1. Install Docker (on Windows: Docker Desktop with the WSL2 backend).
 2. Build the legacy runtime image once: `docker build -t replic8-legacy-runtime:1 backend/runtime`
@@ -76,7 +76,7 @@ curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $A
 ```
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" -d '{"system":"inventory","repo_url":"local://c-inventory-fortran","examples":{"check_stock":[{"part_id":"PMP-2210"}]}}'
+curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" -d '{"system":"inventory","repo_url":"local://c-inventory-java","examples":{"check_stock":[{"part_id":"PMP-2210"}],"get_shipping_options":[{"part_id":"PMP-2210","destination":"PERMIAN"}]}}'
 ```
 
 Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUEST` in `MAINT.cbl` (both places), then `POST /v1/admin/systems/maintenance/check`. In testing with live Nemotron, the repair was saved as v2 in about 6 seconds with identical answers. Undo the rename afterwards (`git checkout legacy/`).
@@ -111,7 +111,7 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 cd backend
 pip install -e ".[dev]"
 docker pull alpine:3.20                            # optional: real sandbox tests
-docker build -t replic8-legacy-runtime:1 runtime   # optional: COBOL/Fortran end-to-end tests
+docker build -t replic8-legacy-runtime:1 runtime   # optional: COBOL/Java end-to-end tests
 pytest -q
 ```
 

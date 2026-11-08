@@ -1,4 +1,4 @@
-"""Full lifecycle on the real COBOL and Fortran demo systems, with a scripted model.
+"""Full lifecycle on the real COBOL and Java demo systems, with a scripted model.
 
 onboard B and C -> contract tests -> graph edge from real fields -> call through
 REST and MCP -> rename GET-REQUEST in the COBOL -> call fails -> trigger_heal ->
@@ -69,8 +69,8 @@ class ScriptedModel:
                                     {"well_id": string}, [{"well_id": "W-17"}], required=("count", "items")))
             return json.dumps({"operations": ops})
         return json.dumps({"operations": [
-            self._op("c-inv", "check_stock", "check_stock", {"part_id": string}, [{"part_id": "PMP-2210"}]),
-            self._op("c-inv", "get_shipping_options", "get_shipping_options",
+            self._op("c-inv", "check_stock", "checkStock", {"part_id": string}, [{"part_id": "PMP-2210"}]),
+            self._op("c-inv", "get_shipping_options", "getShippingOptions",
                      {"part_id": string, "destination": string},
                      [{"part_id": "PMP-2210", "destination": "PERMIAN"}]),
         ]})
@@ -80,7 +80,7 @@ class ScriptedModel:
 def world(tmp_path):
     local = tmp_path / "local"
     shutil.copytree(ROOT / "legacy" / "b-maintenance-cobol", local / "b-maint")
-    shutil.copytree(ROOT / "legacy" / "c-inventory-fortran", local / "c-inv")
+    shutil.copytree(ROOT / "legacy" / "c-inventory-java", local / "c-inv")
     data = tmp_path / "data"
     settings = Settings(data_dir=data, gateway_tokens=frozenset({TOKEN}), admin_tokens=frozenset({ADMIN}),
                         local_repo_root=local)
@@ -195,8 +195,8 @@ def test_code_change_that_keeps_contracts_needs_no_model(world):
     p = world["pipeline"]
     p.onboard("inventory", "local://c-inv")
     calls = len(p.model.calls)
-    src = world["local"] / "c-inv" / "src" / "inventory.f90"
-    src.write_text("! harmless comment added by a maintainer\n" + src.read_text())
+    src = world["local"] / "c-inv" / "src/com/subc/pil/Inventory.java"
+    src.write_text("// harmless comment added by a maintainer\n" + src.read_text())
     outcome = p.heal("inventory")
     assert outcome.status == "saved" and len(p.model.calls) == calls
     assert world["registry"].current("inventory").reason == "code changed; contracts still pass"

@@ -1,4 +1,10 @@
 # Legacy demo code and fixed-width data must keep Unix line endings and exact columns.
 legacy/**/*.cbl text eol=lf whitespace=-trailing-space
 legacy/**/*.f90 text eol=lf
+legacy/**/*.java text eol=lf
 legacy/**/*.dat text eol=lf whitespace=-trailing-space
+
+# Teammates add changelog entries at the top at the same time. Union merge keeps
+# both sides' lines instead of stopping with a conflict (CLAUDE.md rule: never
+# discard a teammate's entry). Check the order after a merge.
+docs/changelog.md merge=union

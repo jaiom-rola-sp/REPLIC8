@@ -1,7 +1,7 @@
 """REPLIC8 MCP demo: what an AI agent at Company A sees.
 
 Connects to the gateway's MCP endpoint, lists the tools generated from the
-legacy COBOL and Fortran systems, then answers "can we fix pump request
+legacy COBOL and Java systems, then answers "can we fix pump request
 R-1001, and how fast?" by chaining three tools across both systems.
 
 Usage (the gateway must be running, with both systems onboarded):
@@ -77,9 +77,9 @@ def main() -> None:
                    mcp.call("maintenance.get_request", {"request_id": args.request_id}))
     if request.get("found") != "Y":
         sys.exit("Request not found.")
-    stock = show("2. Company C (Fortran): check stock for that part",
+    stock = show("2. Company C (Java): check stock for that part",
                  mcp.call("inventory.check_stock", {"part_id": request["part_id"]}))
-    ship = show("3. Company C (Fortran): shipping options to the well's region",
+    ship = show("3. Company C (Java): shipping options to the well's region",
                 mcp.call("inventory.get_shipping_options",
                          {"part_id": request["part_id"], "destination": request["site"]}))
 
