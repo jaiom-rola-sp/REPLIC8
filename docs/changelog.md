@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: Hosting is Azure only
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** PRD section 8 (hosting row), the cloud-provider open question and the risks line now say Azure only (Azure for Students VM for the backend, Vercel for the frontend, laptop plus tunnel as the fallback), replacing the Vultr choice and the Vultr, DigitalOcean and AWS alternatives. Requirements: new decision, and the two Vultr decisions are marked superseded. `docs/architecture.md` updated. Left alone: `deploy/` (the folder is still named `vultr` but the script is generic Ubuntu 24.04, untested on Azure) and the hosting line in `docs/security.md` (T31), which belong to teammates.
+- **Requirement(s):** none
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-07: Heal and versions in the dashboard, with a real activity feed
 
 - **Who:** Claude (for Jaiom)

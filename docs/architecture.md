@@ -25,7 +25,7 @@ Parent company agents / apps
 
 The backend runs every legacy call in a Docker container, so its host must give it a Docker daemon (root-equivalent; see `docs/security.md`). Run it on a VM you control, not on serverless platforms. `deploy/` has the setup for Ubuntu 24.04 (Caddy for HTTPS, a locked-down systemd service). The frontend is a static site (Vercel) that calls the gateway directly, so the gateway lists the site's origin in `REPLIC8_CORS_ORIGINS`.
 
-Hackathon hosting is covered in the PRD (section 8): Vultr, or a student-credit VM, with a laptop plus free tunnel as the fallback.
+Hackathon hosting is covered in the PRD (section 8): an Azure VM on an Azure for Students credit for the backend, Vercel for the frontend, and a laptop plus free tunnel as the fallback.
 
 ## What it stores, and whether it needs a database
 
