@@ -19,7 +19,8 @@ Security posture:
 - Every route except /health needs a bearer token. Gateway tokens read and call;
   admin tokens are separate and are the only ones that can change anything.
   The app refuses to start without a gateway token (fail closed).
-- Every tool call goes through Guard.validate_call (PRD section 7), REST and MCP.
+- Every tool call goes through Validator.validate_call (PRD section 7), REST and MCP,
+  including per-token scopes (REPLIC8_TOKEN_SCOPES). Tool lists show only what a token may call.
 - Write operations return 403 unless listed in REPLIC8_WRITE_OPS.
 - Request bodies are size-capped; input and output are checked against schemas.
 - Errors never echo legacy stderr, stack traces, or caller input.
@@ -51,7 +52,7 @@ from .mcp_server import McpAuth, build_mcp
 from .models import NAME, Access
 from .registry import Registry, RegistryError
 from .sandbox import SandboxError
-from .security import Guard
+from .validator import Denied, Validator
 
 log = logging.getLogger("replic8.gateway")
 MAX_BODY = 64_000
@@ -182,7 +183,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     if not settings.gateway_tokens:
         raise RuntimeError("REPLIC8_GATEWAY_TOKENS is empty; refusing to start an open gateway")
     settings.validate()
-    guard = Guard(settings, registry)
+    validator = Validator(settings, registry)
     events = events or (pipeline.events if pipeline is not None else EventLog())
 
     def on_failure(tool: str, exc: SandboxError) -> None:
@@ -191,7 +192,7 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
         else:
             events.add("call_failed", system=tool.split(".", 1)[0], tool=tool, detail=type(exc).__name__)
 
-    mcp = build_mcp(registry, guard, executor, on_failure)
+    mcp = build_mcp(registry, validator, executor, on_failure)
     mcp_app = mcp.streamable_http_app(
         streamable_http_path="/", stateless_http=True, json_response=True,
         transport_security=TransportSecuritySettings(
@@ -221,10 +222,10 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
         return creds.credentials if creds and creds.scheme.lower() == "bearer" else ""
 
     def reader(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
-        return guard.authenticate(_key(creds))
+        return validator.authenticate(_key(creds))
 
     def admin(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> str:
-        return guard.authenticate(_key(creds), admin=True)
+        return validator.authenticate(_key(creds), admin=True)
 
     def need_pipeline():
         if pipeline is None:
@@ -238,6 +239,10 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
             raise HTTPException(404, "unknown system")
         return system
 
+    @app.exception_handler(Denied)
+    async def _denied(request: Request, exc: Denied):
+        return JSONResponse({"detail": exc.message}, status_code=exc.status, headers=exc.headers)
+
     @app.exception_handler(Exception)
     async def _hide_internals(request: Request, exc: Exception):
         log.exception("unhandled error")
@@ -250,12 +255,14 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
     @app.get("/v1/operations")
     def list_operations(who: str = Depends(reader)) -> dict[str, Any]:
         return {"operations": [_operation_view(tool, op, version, settings)
-                               for tool, (op, version) in sorted(registry.live_operations().items())]}
+                               for tool, (op, version) in sorted(registry.live_operations().items())
+                               if validator.allowed(who, tool)]}
 
     @app.post("/v1/operations/{tool}")
     def call_operation(tool: str, body: CallRequest,
                        creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict[str, Any]:
-        op, version = guard.validate_call(_key(creds), tool, body.input)
+        approved = validator.validate_call(_key(creds), tool, body.input)
+        op, version = approved.op, approved.version
         try:
             result = executor.call(op, version, body.input)
         except SandboxError as exc:
@@ -336,5 +343,5 @@ def create_app(settings: Settings, registry: Registry, executor: Executor, *,
         except RegistryError:
             raise HTTPException(404, "unknown version") from None
 
-    app.mount("/mcp", McpAuth(mcp_app, guard))
+    app.mount("/mcp", McpAuth(mcp_app, validator))
     return app

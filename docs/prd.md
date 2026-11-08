@@ -71,16 +71,12 @@ A web view of the unified API: nodes for companies/systems and operations, edges
 ### F4. Extend (FR-9, stretch)
 Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module.
 
-### F5. Project owner updates via Photon, send-only (FR-12): dropped
-**Dropped 2026-11-08:** we are not building Photon texts. Status updates appear in the dashboard's activity feed (`GET /v1/events`) instead. The original plan is kept below for reference.
+### F5. Status updates (FR-12: Photon dropped)
+Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/events`), which the dashboard shows. No texts are sent and nothing is received.
 
-REPLIC8 texts status updates to approved phone numbers (e.g. the project owner or a manager) through [Photon](https://photon.codes), a messaging API for AI agents that sends over iMessage with SMS/RCS fallback.
-
-- **Outbound only.** REPLIC8 never reads replies and never accepts commands over messaging. No inbound webhook is registered, so a text can't trigger any action. This is the "no write access" rule.
-- **Events sent:** system onboarded, wrapper published, failure detected, self-heal started, repair saved as a new version, repair failed or rolled back.
-- **Safe content:** short summaries only. Never source code, secrets, tokens, or raw customer data.
-- **Allowlist:** numbers come from config (env var), not the repo.
-- **Non-blocking:** if Photon is down, log it and keep going. A failed text must never stop a conversion or repair.
+- **Events logged:** system onboarded, wrapper published, contract failed, change detected, self-heal started, repair saved as a new version, repair failed, rolled back.
+- **Safe content:** identifiers, versions, counts and fixed event kinds only. Never source code, secrets, tokens, or raw customer data.
+- **Non-blocking:** recording an event never stops a conversion or repair.
 - **Noise control:** group repeated failures into one message.
 
 ## 6. Architecture
@@ -107,8 +103,8 @@ Everyone must use these functions.
 
 | Function | Status | When to use | Rules | Owner |
 |----------|--------|-------------|-------|-------|
-| `validate_call(api_key, tool_name, args)` (`Guard` in `backend/replic8/security.py`) | Built | At the start of every gateway route (REST and MCP). | Raises 401 for a bad key, 403 if the tool isn't allowed or is a write operation, 404 if the tool isn't published, 422 for bad input. Logs every call to the audit log. | Security |
-| `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | One locked Docker container per system (B = GnuCOBOL), a fresh container for heal retests, no network, read-only, non-root, resource limits, timeout. Raises `SandboxError` (base error) and its subclasses `SandboxTimeout`, `SandboxCrash`, `OutputSchemaError`, `FunctionMissing`. `Sandbox.build` compiles legacy code through `Sandbox.run` with only the build folder writable. | Security |
+| `Validator.validate_call(token, tool_name, args)` (`backend/replic8/validator.py`) | Built | At the start of every gateway route (REST and MCP). | REST and MCP both use it. Raises `Denied` with 401 for a bad token, 403 on admin routes for a non-admin token (admin tokens, `REPLIC8_ADMIN_TOKENS`, are separate and unscoped), 429 over the rate limit, 403 if the tool is outside the token's scopes (`REPLIC8_TOKEN_SCOPES`; no scopes means no access) or is a write operation, 404 if the tool isn't published, 413 over 64 KB, 422 for bad input. Logs every call to the audit log. | Security |
+| `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | Each call gets a fresh, locked Docker container (B = GnuCOBOL): no network, read-only, non-root, resource limits, timeout. Images are pinned by digest and never pulled at call time. Raises `SandboxError` (base error) for setup problems. Timeouts and crashes are reported as result fields (`timed_out`, `exit_code`, `output_too_large` on `SandboxResult`) that the error handler reads. The executor turns those fields into `SandboxTimeout` and `SandboxCrash`, and wrong output or a renamed function into `OutputSchemaError` and `FunctionMissing` (all built). `Sandbox.build` compiles legacy code through `Sandbox.run` with only the build folder writable. | Security |
 | `trigger_heal(tool_name, error_info)` (`Pipeline` in `backend/replic8/pipeline.py`) | Built | Called by the error handler only on `OutputSchemaError` or `FunctionMissing`. | A repair must not change a tool's read/write access, and is saved only if contract tests pass. | Backend |
 | ~~`notify(event, *, system, version, count)`~~ | Removed 2026-11-08 | Photon was dropped; status goes to the activity log (`EventLog` in `backend/replic8/events.py`). | Events carry only identifiers, versions, counts and fixed kinds; no code or data. | Security |
 
@@ -123,7 +119,7 @@ Everyone must use these functions.
 | Sandbox | Docker | Isolates untrusted legacy code | |
 | Registry/versioning | Files + git in a `registry/` folder | No database to set up in 24h | |
 | Graph UI | React + React Flow | Fast node/edge graphs | |
-| Hosting | One cloud VM running docker compose | Simplest for a demo | **TBD** provider |
+| Hosting | Vercel (frontend) and one Vultr Ubuntu server with Docker and Caddy (backend) | Simplest for a demo | **Decided 2026-11-08** (`deploy/README.md`) |
 | Notifications | Photon (iMessage, SMS/RCS fallback) | Your chosen service; texts a project owner without building messaging | **verify** pricing, rate limits, whether a send-only key exists, number provisioning | **Dropped 2026-11-08.**
 
 ## 9. Anti-hallucination rules (for humans and AIs)
@@ -149,7 +145,7 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 - [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Both demo systems use the `parsed` tier (Aryan, 2026-11-07); a `black-box` Fortran path is a stretch goal if time allows. **Changed 2026-11-08:** C is now legacy Java (see requirements decisions).
   Original question: To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
 - [x] Which Nemotron model, and what API limits and key do we have? **Decided 2026-11-07:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (early access). Key is in Aryan's cloud environment secrets, not the repo. Rate limits still unknown.
-- [ ] Which cloud provider and who owns the keys?
+- [x] Which cloud provider and who owns the keys? **Decided 2026-11-08:** Vercel (frontend, Jai) and Vultr (backend). Still open: the backend hostname, and who holds the Vultr account and the admin token.
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
   **Proposed 2026-11-08 (in the demo systems):** part ID (e.g. `PMP-2210`) and site region (e.g. `PERMIAN`). See `legacy/README.md`. Team to confirm.
 - [ ] Should each demo legacy system live in its own GitHub repo, so REPLIC8 ingests it by URL? (Currently both are in `legacy/` in this repo.)

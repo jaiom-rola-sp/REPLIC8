@@ -29,7 +29,7 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `executor.py` | Calls an operation in the sandbox; checks input and output schemas | FR-3, FR-5 |
 | `registry.py` | Versioned wrappers; publishes only tested operations; rollback | FR-3, FR-8 |
 | `gateway.py` | One authenticated, read-only-by-default gateway: REST, MCP, OpenAPI, graph, events, admin | FR-2, FR-5, FR-6, FR-8, FR-13 |
-| `security.py` | `validate_call` (PRD section 7), token checks, rate limit, audit log | FR-5, FR-13 |
+| `validator.py` | `Validator.validate_call` (PRD section 7): token checks, per-token scopes, admin tokens, rate limit, audit log; used by REST and MCP | FR-5, FR-13 |
 | `mcp_server.py` | **The main interface:** MCP tools over Streamable HTTP at `/mcp`, through the same checks as REST | FR-2, FR-5 |
 | `contracts.py` | Contract tests: record real input/output cases; replay them after a repair | FR-3, FR-7 |
 | `pipeline.py` | Onboarding and self-heal; `trigger_heal` (PRD section 7); change polling; rollback | FR-1 to FR-8 |
@@ -121,6 +121,7 @@ pytest -q
 |----------|---------|
 | `REPLIC8_DATA_DIR` | Where clones and the registry live (default `./data`, git-ignored) |
 | `REPLIC8_GATEWAY_TOKENS` | Comma-separated bearer tokens for agents and the dashboard, at least 32 characters each. Required. |
+| `REPLIC8_TOKEN_SCOPES` | Which tools each token may call: `<token id>=maintenance.*\|inventory.get_part,<token id>=...`. The token id is the first 12 hex characters of the token's SHA-256 (shown in audit logs). A token with no entry can call nothing. |
 | `REPLIC8_ADMIN_TOKENS` | Separate tokens for onboarding, repairs and rollback. Admin API is off when empty. |
 | `REPLIC8_LOCAL_REPO_ROOT` | Dev/demo only: allow `local://<folder>` repos from this folder. Off when unset. |
 | `REPLIC8_POLL_SECONDS` | Check legacy repos for changes every N seconds (at least 30; 0 = off) |
@@ -128,7 +129,7 @@ pytest -q
 | `REPLIC8_ALLOWED_HOSTS` | Host headers the MCP endpoint accepts (default `127.0.0.1:*,localhost:*`) |
 | `REPLIC8_HOST`, `REPLIC8_PORT` | Where the server listens (default `127.0.0.1:8000`) |
 | `REPLIC8_WRITE_OPS` | Write tools to allow, e.g. `inventory.reserve_part`. Leave empty in v1. |
-| `REPLIC8_SANDBOX_IMAGES` | Docker images the sandbox may run. Pin by digest. |
+| `REPLIC8_SANDBOX_IMAGES` | Docker images the sandbox may run. Each must be pinned by digest (`name:tag@sha256:...`) or startup fails, and images are never pulled at call time. When unset, startup pins the local `replic8-legacy-runtime:1` image to its current digest. |
 | `NVIDIA_API_KEY` | Nemotron API key. Required for generation and healing. |
 | `REPLIC8_NEMOTRON_MODEL` | Exact model id, currently `nvidia/nemotron-3.5-super-vl-120b-a12b`. Required. |
 | `REPLIC8_NEMOTRON_BASE_URL` | Default `https://integrate.api.nvidia.com/v1` |

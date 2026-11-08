@@ -62,6 +62,7 @@ See [prd section 11](prd.md#11-open-questions).
 
 ## Decisions
 
+- **2026-11-08:** Hosting: the frontend on Vercel (Jai), the backend on one Vultr Ubuntu 24.04 server behind Caddy for HTTPS. Setup is scripted in `deploy/`. Reason: team choice; Vercel suits the static React app, and the backend needs Docker, which serverless hosting can't provide.
 - **2026-11-08:** Subsidiary C's legacy system is legacy Java (J2SE 1.4 style), not Fortran. Reason: Fortran reads more like a scripting/numeric language than business software; old Java is a more believable legacy system for an inventory company. Same operations, data and shared keys (part ID, site region). REPLIC8 still supports Fortran. B stays COBOL, and the live self-heal rename stays in COBOL.
 - **2026-11-08:** Example inputs given at onboarding are treated as real values: if the model's input rules reject them, REPLIC8 loosens only those value rules (pattern, length, enum) and logs a `schema_adjusted` event. Reason: in live testing Nemotron wrote a `part_id` pattern that rejected the real ID `PMP-2210`.
 - **2026-11-07:** The dashboard imports from GitHub in three planned sections: Legacy (built), Established (will read the repo's API file and list its operations; never run it), and Extension (will only load and register for now). Public repositories only. Imports need a separate admin token, held in browser memory only. The Fortran demo system will be replaced by an old Java system, which needs a Java runtime in the backend first. Reason: keeps v1 read-only and cheap while the GitHub loading is proven.
@@ -83,3 +84,4 @@ See [prd section 11](prd.md#11-open-questions).
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.
 
 - **2026-11-07:** Website direction is a silver infinity object on a dark starfield, with a narrative landing page and a separate SaaS workspace. The numeral 8 in REPLIC8 becomes the object followed on scroll. Assets generated through Higgsfield; local review requested before publication.
+- **2026-11-07:** Photon is dropped. Notifications are log-only: `Notifier` keeps its log-only transport and no texts are sent. FR-12 moved to out of scope. *(Superseded 2026-11-08: the notifier was removed; status goes to the activity log, `GET /v1/events`.)*

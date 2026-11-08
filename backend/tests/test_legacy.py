@@ -14,10 +14,10 @@ from replic8.extract import extract_symbols
 from replic8.gateway import create_app
 from replic8.models import ContractTestResult, Operation
 from replic8.registry import Registry
-from replic8.runtimes import LEGACY_IMAGE, RUNTIMES, argv_for, callable_symbols
+from replic8.runtimes import LEGACY_IMAGE, RUNTIMES, argv_for, callable_symbols, pin_local_image
 from replic8.sandbox import Sandbox
 
-from conftest import TOKEN
+from conftest import ALL_SCOPES, TOKEN
 
 ROOT = Path(__file__).resolve().parents[2]
 B = ROOT / "legacy" / "b-maintenance-cobol"
@@ -65,6 +65,17 @@ def test_unparseable_file_is_reported_not_guessed(tmp_path):
     (tmp_path / "bad.f90").write_text("subroutine (((\n")
     symbols, partial = extract_symbols(tmp_path)
     assert symbols == [] and partial == ["bad.f90"]
+
+
+def test_hostile_file_cannot_hang_extraction(tmp_path):
+    import time
+    (tmp_path / "evil.cbl").write_text("x")  # the COBOL grammar never finishes on this
+    shutil.copy(B / "src" / "MAINT.cbl", tmp_path / "MAINT.cbl")
+    start = time.time()
+    symbols, partial = extract_symbols(tmp_path, timeout_s=3)
+    assert time.time() - start < 15
+    assert "evil.cbl" in partial
+    assert "GET-REQUEST" in {s.name for s in symbols}  # the real file still works
 
 
 def test_symbol_must_be_on_its_reported_line():
@@ -129,7 +140,7 @@ def test_end_to_end_cobol_and_java(tmp_path):
         "maintenance": (B, repos / "acme__b-maint" / COMMIT_B, builds / "acme__b-maint" / COMMIT_B, COMMIT_B),
         "inventory": (C, repos / "acme__c-inv" / COMMIT_C, builds / "acme__c-inv" / COMMIT_C, COMMIT_C),
     }
-    sandbox = Sandbox(repos, frozenset({LEGACY_IMAGE}), SandboxLimits(timeout_s=20), builds_root=builds)
+    sandbox = Sandbox(repos, frozenset({pin_local_image()}), SandboxLimits(timeout_s=20), builds_root=builds)
     for src, code, build, _ in checkouts.values():
         shutil.copytree(src, code)
         result = sandbox.build(LEGACY_IMAGE, code, build, list(RUNTIMES["cobol"].build_argv))
@@ -155,7 +166,8 @@ def test_end_to_end_cobol_and_java(tmp_path):
     reg.publish("inventory", "https://github.com/acme/c-inv.git", COMMIT_C, [stock],
                 {stock.tool: ContractTestResult(passed=True, cases=1, source_commit=COMMIT_C)})
 
-    app = create_app(Settings(data_dir=data, gateway_tokens=frozenset({TOKEN})), reg, Executor(sandbox, repos))
+    app = create_app(Settings(data_dir=data, gateway_tokens=frozenset({TOKEN}), token_scopes=ALL_SCOPES), reg,
+                     Executor(sandbox, repos))
     client = TestClient(app)
     auth = {"Authorization": f"Bearer {TOKEN}"}
 

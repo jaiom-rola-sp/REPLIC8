@@ -4,11 +4,14 @@ from pathlib import Path
 
 import pytest
 
+from replic8.config import token_id
 from replic8.models import ContractTestResult, Operation
 
 COMMIT = "a" * 40
 OTHER_COMMIT = "b" * 40
 TOKEN = "t" * 40
+# Gateway tokens are fail-closed: without scopes they can call nothing.
+ALL_SCOPES = {token_id(TOKEN): frozenset({"maintenance.*", "inventory.*"})}
 
 
 def make_op(name: str = "get_request", access: str = "read", ns: str = "maintenance") -> Operation:

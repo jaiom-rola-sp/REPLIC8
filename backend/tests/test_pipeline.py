@@ -21,10 +21,10 @@ from replic8.extract import extract_symbols
 from replic8.gateway import create_app
 from replic8.pipeline import Pipeline, PipelineError
 from replic8.registry import Registry
-from replic8.runtimes import LEGACY_IMAGE, callable_symbols
+from replic8.runtimes import LEGACY_IMAGE, callable_symbols, pin_local_image
 from replic8.sandbox import Sandbox
 
-from conftest import TOKEN
+from conftest import ALL_SCOPES, TOKEN
 
 ROOT = Path(__file__).resolve().parents[2]
 ADMIN = "a" * 40
@@ -83,8 +83,9 @@ def world(tmp_path):
     shutil.copytree(ROOT / "legacy" / "c-inventory-java", local / "c-inv")
     data = tmp_path / "data"
     settings = Settings(data_dir=data, gateway_tokens=frozenset({TOKEN}), admin_tokens=frozenset({ADMIN}),
+                        token_scopes=ALL_SCOPES,
                         local_repo_root=local)
-    sandbox = Sandbox(data / "repos", frozenset({LEGACY_IMAGE}), SandboxLimits(timeout_s=20),
+    sandbox = Sandbox(data / "repos", frozenset({pin_local_image()}), SandboxLimits(timeout_s=20),
                       builds_root=data / "builds")
     executor = Executor(sandbox, data / "repos")
     registry = Registry(data)

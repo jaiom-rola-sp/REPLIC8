@@ -22,6 +22,24 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** `prompts.py` rules now explain the call protocol (how input and output keys map to the legacy `KEY=VALUE` lines, `items`, `count`), require field names copied from the legacy keys so systems share names (e.g. `part_id`), and ask for agent-facing descriptions on each operation and property, strict inputs (`maxLength` from field sizes) and lenient outputs. Added `tests/test_prompts.py` (2 tests). Live run on B and C: all 4 operations accepted; known issue: `cost_usd` was typed as a string though the shim returns a number.
 - **Requirement(s):** FR-2, FR-6
 - **Commit:** c201d63
+## 2026-11-08: Merge Jai's connected frontend with the security merge and Vultr deployment
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Merged `main` (Jai's dashboard connection, Add System flow, graph layout, onboarding stages and `known_values`) with Krish's security merge and the Vultr deployment. No conflicts; Jai's routes run through the merged `Validator` and token scopes. 159 tests pass, including Jai's new ones.
+- **Requirement(s):** FR-5, FR-6, WEB-4
+- **Commit:** this commit
+
+## 2026-11-08: Merge Krish's security branch into main
+
+- **Who:** Claude (for Aryan; merging Krish's work)
+- **What changed:** Merged the `security` branch. Kept Krish's `Validator.validate_call` (`validator.py`) as the single caller check and extended it with admin tokens; REST and MCP both use it, and tool lists (`/v1/operations`, MCP `tools/list`) show only a token's scopes. Kept per-token scopes (`REPLIC8_TOKEN_SCOPES`, fail closed), digest-pinned sandbox images with `--pull never`, and the stuck-docker-client fix; startup pins the local runtime image to its digest when `REPLIC8_SANDBOX_IMAGES` is unset. Removed `security.py`; kept `notify.py` removed (Photon dropped; status goes to the activity log). Calls that pass validation are now audit-logged too. All of Krish's tests pass alongside main's (145 total).
+- **Requirement(s):** FR-5, FR-13, NFR Security
+## 2026-11-08: Vultr deployment for the backend; parser hang fix
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `deploy/` with a guide and a Vultr setup for the backend: `setup.sh` (Docker, Caddy HTTPS, Python, a non-root `replic8` service user, pre-downloaded grammars, runtime image, random tokens, firewall), a hardened systemd unit, a Caddyfile, an env template, `onboard-demo.sh` and `update.sh`. Setup also scopes the generated gateway token to both demo systems and pins the sandbox to the runtime image's digest (Krish's merged rules). Rehearsed the install as a separate service user (health, CORS for a Vercel origin, MCP behind a hostname, onboarding, MCP demo), and re-checked with the merged scopes and pinning. Fixed a hang found while testing: the COBOL grammar never finishes on some garbage input, so each file is now parsed in a time-limited child process (threat T30). Recorded the Vercel + Vultr hosting decision. 146 tests.
+- **Requirement(s):** FR-1, FR-5, NFR Security
+- **Commit:** this commit
 
 ## 2026-11-08: Company C is legacy Java; changelog merges without conflicts
 
@@ -75,6 +93,40 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** Added `legacy/b-maintenance-cobol` (COBOL: `GET-REQUEST`, `LIST-OPEN-REQUESTS`) and `legacy/c-inventory-fortran` (Fortran: `check_stock`, `get_shipping_options`) with fixed-width data linked by part ID and site region. Added the runtime image (`backend/runtime/`: GnuCOBOL, gfortran, call shim, sandboxed build), tree-sitter extraction, and per-language runtimes. Live Nemotron picks exactly the four real operations. Recorded "both systems parsed". Added threats T20 to T22 and 14 tests (109 total), including an end-to-end COBOL and Fortran run through the gateway.
 - **Requirement(s):** FR-1, FR-4, FR-10, FR-11
 - **Commit:** this commit
+## 2026-11-07: Security doc: scopes, digest pinning, no Photon
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** `docs/security.md`: T9 now covers per-token scopes and `validate_call`; the digest-pinning gap is marked done; the tokens gap no longer says there are no scopes. Removed the Photon items (T13, "the network around Photon", and the Photon transport in "not built yet"). Threat numbers are unchanged, so T13 is now unused.
+- **Requirement(s):** FR-4, FR-12 (dropped), FR-13
+- **Commit:** a6b9d06
+
+## 2026-11-07: Shared validate_call with per-token scopes
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Moved the gateway's auth, rate limit, published-tool, write-blocking, size and input-schema checks into `Validator.validate_call(token, tool_name, args)` in `backend/replic8/validator.py`; every gateway route except `/health` calls it, so a future MCP server can reuse it. Added per-token scopes (`REPLIC8_TOKEN_SCOPES`, `ns.*` or one tool): out-of-scope calls get 403, a token with no scopes can call nothing, and listing shows only in-scope tools. Updated PRD section 7 and the backend README. Added 10 tests.
+- **Requirement(s):** FR-13
+- **Commit:** 796dd5c
+
+## 2026-11-07: Drop Photon, notifications are log-only
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Docs only. Moved FR-12 to out of scope and added a decision that Photon is dropped and notifications are log-only. Updated PRD F5, the `notify` row in section 7, and the notifications row in technology choices. Removed the Photon part of `CLAUDE.md` rule 6. `notify.py` is unchanged (it already defaults to a log-only transport).
+- **Requirement(s):** FR-12 (dropped)
+- **Commit:** 28a366c
+
+## 2026-11-07: PRD subclass cleanup and Windows test skips
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** PRD section 7 now lists only `OutputSchemaError` and `FunctionMissing` as planned sandbox subclasses (timeouts and crashes are result fields). The real-container Docker tests and the symlink test now skip on Windows: the sandbox only accepts Linux paths, and symlinks need admin rights on Windows.
+- **Requirement(s):** FR-4
+- **Commit:** 6836c94
+
+## 2026-11-07: Harden sandbox and notifier
+
+- **Who:** Krish Thapa (with Claude)
+- **What changed:** Sandbox: images must be pinned by digest (checked at startup and in `Sandbox`), `docker run --pull never`, and a stuck docker client after a timeout kill no longer raises. Notifier: the transport gets `timeout_s` on every send, the queue is capped (`max_queue`, extras dropped and logged), and `flush()` has a timeout. PRD section 7 now says each call gets a fresh container and that timeouts and crashes are result fields. Added 6 tests.
+- **Requirement(s):** FR-4, FR-12
+- **Commit:** 10c4517
 
 ## 2026-11-07: CLAUDE.md rule uses Sandbox.run
 
