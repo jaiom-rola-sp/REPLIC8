@@ -135,15 +135,50 @@ RULES = """Rules:
   {"operations": [{"name", "symbol", "file", "line", "access", "description",
   "input_schema", "output_schema"}]}
 - At most __MAX__ operations. Prefer read-only lookups; v1 serves read operations only.
-- "name" is snake_case, starts with a letter, at most 64 characters.
+- "name" is snake_case in verb_noun form (e.g. get_request, check_stock), starts with a letter,
+  at most 64 characters. Don't include the system name; replic8 adds it as a prefix.
 - "symbol", "file" and "line" must point to where the function is defined. "file" is the path
   shown in the FILE marker; "line" is the line number shown in the left column.
 - "access" is "write" if the function creates, changes, deletes, sends, or orders anything;
   otherwise "read". When unsure, use "write".
-- "input_schema" and "output_schema" are JSON Schema objects with "type": "object". Make input
-  schemas strict: "additionalProperties": false, string lengths and patterns where obvious.
 - Do not write code or commands. replic8 builds the call to each function itself.
 - Never invent functions, files, or line numbers. If nothing qualifies, return {"operations": []}.
+
+How replic8 calls a function (your schemas must match this exactly):
+- The input is a JSON object. Each property becomes one KEY=VALUE line for the program: the name
+  is upper-cased and "_" becomes "-" (part_id -> PART-ID). Values are strings or numbers, at most
+  64 characters, with no "=" or line breaks.
+- The program's KEY=VALUE output lines come back as JSON: keys lower-cased, "-" becomes "_"
+  (ON-HAND -> on_hand). A value made only of digits (optionally with a decimal point) comes back
+  as a number; anything else is a string. So an identifier printed as digits is a number.
+- Output lines after BEGIN-ITEMS come back as a list under "items", one object per item ("--"
+  closes an item). A COUNT line always comes back as top-level "count".
+- An ERROR=... line makes the call fail, so never put "error" in an output schema.
+
+Field names (this is how replic8 links systems to each other):
+- Name every property after the exact key the program reads or prints, converted as above. Find
+  them in the code: the keys it matches when reading input, and the keys it prints.
+- Never rename, shorten, translate or merge keys, and never add a property the code doesn't read
+  or print. Keeping legacy names means the same data has the same name in every system.
+- Input property names use lowercase letters, digits and "_", start with a letter, and are at
+  most 31 characters.
+
+Descriptions (agents read these to choose and call a tool):
+- "description" (at most 500 characters, plain language, no code): what the operation does, when
+  an agent should use it, what it returns, and what it returns when nothing matches (for
+  example found = "N").
+- Every property in both schemas, including properties of list items, gets a "description":
+  what it means in business terms, and its format or size when the code shows it.
+- Add "enum" only to inputs, and only when the code accepts a fixed set of values. Add
+  "examples" only with values that appear in the code or its comments. Never make values up.
+
+Schemas ("input_schema" and "output_schema" are JSON Schema objects with "type": "object"):
+- Input: list every property the function needs in "required", set "additionalProperties":
+  false, and set string "maxLength" from the field size in the code (PIC X(8) -> 8,
+  character(len=10) -> 10). Add "pattern" only when the code itself checks a format.
+- Output: "required" lists only the properties printed on every path, including the not-found
+  path. Describe "items" as an array of objects with their own properties. Don't set
+  "additionalProperties": false on outputs.
 """
 
 

@@ -2,6 +2,20 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Ignore .env files repo-wide
+
+- **Who:** tonia (with Claude Code)
+- **What changed:** `.gitignore` now ignores `.env` and `.env.*` everywhere (previously only under `web/`), keeping `.env.example` files tracked, so a `backend/.env` with the Nemotron key can't be committed.
+- **Requirement(s):** NFR Security
+- **Commit:** this commit
+
+## 2026-11-08: Agent-friendly propose prompt
+
+- **Who:** tonia (with Claude Code)
+- **What changed:** `prompts.py` rules now explain the call protocol (how input and output keys map to the legacy `KEY=VALUE` lines, `items`, `count`), require field names copied from the legacy keys so systems share names (e.g. `part_id`), and ask for agent-facing descriptions on each operation and property, strict inputs (`maxLength` from field sizes) and lenient outputs. Added `tests/test_prompts.py` (2 tests). Live run on B and C: all 4 operations accepted; known issue: `cost_usd` was typed as a string though the shim returns a number.
+- **Requirement(s):** FR-2, FR-6
+- **Commit:** this commit
+
 ## 2026-11-08: COBOL and Fortran demo legacy systems
 
 - **Who:** Claude (for Aryan)

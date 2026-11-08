@@ -7,6 +7,11 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
+# Secrets (API keys, tokens)
+.env
+.env.*
+!.env.example
+
 # Frontend build and local configuration
 web/node_modules/
 web/dist/
