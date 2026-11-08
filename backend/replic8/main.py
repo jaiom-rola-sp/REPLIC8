@@ -19,7 +19,7 @@ from .gateway import create_app
 from .nemotron import ModelConfig, ModelError, NemotronClient
 from .pipeline import Pipeline
 from .registry import Registry
-from .runtimes import LEGACY_IMAGE
+from .runtimes import pin_local_image
 from .sandbox import Sandbox
 
 log = logging.getLogger("replic8")
@@ -29,8 +29,11 @@ def create(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     data = settings.data_dir
     registry = Registry(data)
-    sandbox = Sandbox(data / "repos", settings.sandbox_images or frozenset({LEGACY_IMAGE}), settings.sandbox,
-                      builds_root=data / "builds")
+    # Images are digest-pinned (REPLIC8_SANDBOX_IMAGES); without that setting, pin the
+    # locally built runtime image to its exact digest at startup.
+    images = settings.sandbox_images or frozenset({pin_local_image()})
+    log.info("sandbox images: %s", ", ".join(sorted(images)))
+    sandbox = Sandbox(data / "repos", images, settings.sandbox, builds_root=data / "builds")
     executor = Executor(sandbox, data / "repos")
     try:
         model = NemotronClient(ModelConfig.from_env())

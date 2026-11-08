@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from replic8.ingest import IngestError, _scan, normalize_repo_url
@@ -32,6 +34,7 @@ def test_rejects_unsafe_urls(url):
         normalize_repo_url(url)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="creating symlinks on Windows needs admin rights")
 def test_scan_drops_symlinks_and_enforces_limits(tmp_path):
     (tmp_path / "main.py").write_text("print(1)\n")
     (tmp_path / "LEGACY.CBL").write_text("IDENTIFICATION DIVISION.\n")

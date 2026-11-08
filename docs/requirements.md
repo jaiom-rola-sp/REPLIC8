@@ -80,3 +80,4 @@ See [prd section 11](prd.md#11-open-questions).
 - **2026-11-07:** Python + FastAPI backend, Docker sandbox, React Flow graph. Reason: fastest path to OpenAPI + MCP in 24h.
 
 - **2026-11-07:** Website direction is a silver infinity object on a dark starfield, with a narrative landing page and a separate SaaS workspace. The numeral 8 in REPLIC8 becomes the object followed on scroll. Assets generated through Higgsfield; local review requested before publication.
+- **2026-11-07:** Photon is dropped. Notifications are log-only: `Notifier` keeps its log-only transport and no texts are sent. FR-12 moved to out of scope. *(Superseded 2026-11-08: the notifier was removed; status goes to the activity log, `GET /v1/events`.)*

@@ -4,6 +4,7 @@ Legacy code is untrusted. Each call gets a fresh container with:
 no network, read-only root filesystem, all capabilities dropped, no privilege
 escalation, a non-root user, CPU/memory/PID limits, a wall-clock timeout,
 and a cap on output size. Caller input goes in on stdin as JSON, never as argv.
+Images must be pinned by digest and are never pulled at call time.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import SandboxLimits
+from .config import PINNED_IMAGE, SandboxLimits
 
 # Linux/macOS paths, or Windows paths like C:\\Users\\aryan\\data. No commas, quotes or
 # spaces, which could break the --mount spec.
@@ -74,6 +75,7 @@ def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits
         mounts += ["--mount", f"type=bind,source={build_dir},target=/build{ro}"]
     return [
         "docker", "run", "--rm", "-i", "--init",
+        "--pull", "never",
         "--name", name,
         "--network", "none",
         "--read-only",
@@ -102,6 +104,9 @@ BUILD_LIMITS = SandboxLimits(timeout_s=180.0, memory="1g", cpus="1.0", pids=128,
 class Sandbox:
     def __init__(self, repos_root: Path, allowed_images: frozenset[str], limits: SandboxLimits,
                  builds_root: Path | None = None):
+        unpinned = sorted(i for i in allowed_images if not PINNED_IMAGE.match(i))
+        if unpinned:
+            raise SandboxError(f"sandbox images must be pinned by digest: {unpinned}")
         self.repos_root = repos_root.resolve()
         self.builds_root = (builds_root or repos_root.parent / "builds").resolve()
         self.allowed_images = allowed_images
@@ -122,9 +127,20 @@ class Sandbox:
         return self.run(image, code_dir, argv, b"", build_dir=build_dir, writable_build=True,
                         limits=BUILD_LIMITS)
 
+    def pinned(self, image: str) -> str:
+        """The digest-pinned reference to run for `image`.
+
+        Operations name an image like `replic8-legacy-runtime:1`; the allowlist holds
+        its pinned form (`replic8-legacy-runtime:1@sha256:...`), which is what runs.
+        """
+        if image in self.allowed_images:
+            return image
+        for allowed in sorted(self.allowed_images):
+            if allowed.split("@", 1)[0] == image:
+                return allowed
+        raise SandboxError("image is not on the sandbox allowlist")
+
     def _check(self, image: str, code_dir: Path, payload: bytes) -> Path:
-        if image not in self.allowed_images:
-            raise SandboxError("image is not on the sandbox allowlist")
         resolved = code_dir.resolve()
         if self.repos_root not in resolved.parents or not resolved.is_dir():
             raise SandboxError("code directory must be a cloned repo under the data dir")
@@ -138,6 +154,7 @@ class Sandbox:
             build_dir: Path | None = None, writable_build: bool = False,
             limits: SandboxLimits | None = None) -> SandboxResult:
         limits = limits or self.limits
+        image = self.pinned(image)
         resolved = self._check(image, code_dir, payload)
         build = self._check_build_dir(build_dir) if build_dir is not None else None
         name = f"replic8-{uuid.uuid4().hex}"
@@ -185,7 +202,10 @@ class Sandbox:
         except subprocess.TimeoutExpired:
             timed_out = True
             _kill(name, proc)
-            proc.wait(timeout=10)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pass  # docker client is stuck even after kill; report exit_code=None, timed_out=True
         for t in threads:
             t.join(timeout=5)
 

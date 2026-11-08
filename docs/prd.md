@@ -71,16 +71,12 @@ A web view of the unified API: nodes for companies/systems and operations, edges
 ### F4. Extend (FR-9, stretch)
 Add new functionality that doesn't touch the legacy code, such as a new endpoint that combines data from two systems. Lives in a separate `extensions/` module.
 
-### F5. Project owner updates via Photon, send-only (FR-12): dropped
-**Dropped 2026-11-08:** we are not building Photon texts. Status updates appear in the dashboard's activity feed (`GET /v1/events`) instead. The original plan is kept below for reference.
+### F5. Status updates (FR-12: Photon dropped)
+Photon was dropped (2026-11-07). Status events go to the activity log (`GET /v1/events`), which the dashboard shows. No texts are sent and nothing is received.
 
-REPLIC8 texts status updates to approved phone numbers (e.g. the project owner or a manager) through [Photon](https://photon.codes), a messaging API for AI agents that sends over iMessage with SMS/RCS fallback.
-
-- **Outbound only.** REPLIC8 never reads replies and never accepts commands over messaging. No inbound webhook is registered, so a text can't trigger any action. This is the "no write access" rule.
-- **Events sent:** system onboarded, wrapper published, failure detected, self-heal started, repair saved as a new version, repair failed or rolled back.
-- **Safe content:** short summaries only. Never source code, secrets, tokens, or raw customer data.
-- **Allowlist:** numbers come from config (env var), not the repo.
-- **Non-blocking:** if Photon is down, log it and keep going. A failed text must never stop a conversion or repair.
+- **Events logged:** system onboarded, wrapper published, contract failed, change detected, self-heal started, repair saved as a new version, repair failed, rolled back.
+- **Safe content:** identifiers, versions, counts and fixed event kinds only. Never source code, secrets, tokens, or raw customer data.
+- **Non-blocking:** recording an event never stops a conversion or repair.
 - **Noise control:** group repeated failures into one message.
 
 ## 6. Architecture
@@ -107,8 +103,8 @@ Everyone must use these functions.
 
 | Function | Status | When to use | Rules | Owner |
 |----------|--------|-------------|-------|-------|
-| `validate_call(api_key, tool_name, args)` (`Guard` in `backend/replic8/security.py`) | Built | At the start of every gateway route (REST and MCP). | Raises 401 for a bad key, 403 if the tool isn't allowed or is a write operation, 404 if the tool isn't published, 422 for bad input. Logs every call to the audit log. | Security |
-| `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | One locked Docker container per system (B = GnuCOBOL), a fresh container for heal retests, no network, read-only, non-root, resource limits, timeout. Raises `SandboxError` (base error) and its subclasses `SandboxTimeout`, `SandboxCrash`, `OutputSchemaError`, `FunctionMissing`. `Sandbox.build` compiles legacy code through `Sandbox.run` with only the build folder writable. | Security |
+| `Validator.validate_call(token, tool_name, args)` (`backend/replic8/validator.py`) | Built | At the start of every gateway route (REST and MCP). | REST and MCP both use it. Raises `Denied` with 401 for a bad token, 403 on admin routes for a non-admin token (admin tokens, `REPLIC8_ADMIN_TOKENS`, are separate and unscoped), 429 over the rate limit, 403 if the tool is outside the token's scopes (`REPLIC8_TOKEN_SCOPES`; no scopes means no access) or is a write operation, 404 if the tool isn't published, 413 over 64 KB, 422 for bad input. Logs every call to the audit log. | Security |
+| `Sandbox.run(image, code_dir, argv, payload)` (`backend/replic8/sandbox.py`) | Built | Any time B or C legacy code runs (contract tests, gateway calls, heal retests). Never run legacy code directly. | Each call gets a fresh, locked Docker container (B = GnuCOBOL): no network, read-only, non-root, resource limits, timeout. Images are pinned by digest and never pulled at call time. Raises `SandboxError` (base error) for setup problems. Timeouts and crashes are reported as result fields (`timed_out`, `exit_code`, `output_too_large` on `SandboxResult`) that the error handler reads. The executor turns those fields into `SandboxTimeout` and `SandboxCrash`, and wrong output or a renamed function into `OutputSchemaError` and `FunctionMissing` (all built). `Sandbox.build` compiles legacy code through `Sandbox.run` with only the build folder writable. | Security |
 | `trigger_heal(tool_name, error_info)` (`Pipeline` in `backend/replic8/pipeline.py`) | Built | Called by the error handler only on `OutputSchemaError` or `FunctionMissing`. | A repair must not change a tool's read/write access, and is saved only if contract tests pass. | Backend |
 | ~~`notify(event, *, system, version, count)`~~ | Removed 2026-11-08 | Photon was dropped; status goes to the activity log (`EventLog` in `backend/replic8/events.py`). | Events carry only identifiers, versions, counts and fixed kinds; no code or data. | Security |
 

@@ -1,9 +1,12 @@
+import io
 import shutil
 import subprocess
+import sys
 
 import pytest
 
-from replic8.config import SandboxLimits
+from replic8 import sandbox as sandbox_module
+from replic8.config import ConfigError, SandboxLimits, Settings
 from replic8.executor import CallError, Executor
 from replic8.sandbox import OutputSchemaError
 from replic8.models import WrapperVersion
@@ -11,7 +14,21 @@ from replic8.sandbox import Sandbox, SandboxError, build_command
 
 from conftest import COMMIT, make_op, passed
 
-IMAGE = "alpine:3.20"
+TAG = "alpine:3.20"
+FAKE_PINNED = TAG + "@sha256:" + "0" * 64
+
+
+def _local_digest() -> str | None:
+    """The pinned reference (alpine@sha256:...) of a locally pulled alpine:3.20, if Docker has one."""
+    if not shutil.which("docker"):
+        return None
+    r = subprocess.run(["docker", "image", "inspect", TAG, "--format", "{{index .RepoDigests 0}}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and "@sha256:" in r.stdout else None
+
+
+DIGEST = _local_digest()
+IMAGE = DIGEST or FAKE_PINNED
 
 
 def test_command_has_every_hardening_flag(tmp_path):
@@ -21,6 +38,52 @@ def test_command_has_every_hardening_flag(tmp_path):
                  "--pids-limit", "--memory 256m", "--user 65534:65534", "readonly", "--log-driver none"):
         assert flag in joined
     assert cmd[-3:] == [IMAGE, "echo", "hi"]
+
+
+def test_command_never_pulls_images(tmp_path):
+    cmd = build_command("n", IMAGE, tmp_path, ["true"], SandboxLimits())
+    i = cmd.index("--pull")
+    assert cmd[i + 1] == "never"
+    assert i < cmd.index(IMAGE)  # an option, not an argument to the legacy program
+
+
+def test_images_must_be_pinned_by_digest(tmp_path):
+    with pytest.raises(SandboxError, match="digest"):
+        Sandbox(tmp_path, frozenset({TAG}), SandboxLimits())
+    with pytest.raises(SandboxError):
+        Sandbox(tmp_path, frozenset({FAKE_PINNED, "alpine@sha256:short"}), SandboxLimits())
+    Sandbox(tmp_path, frozenset({FAKE_PINNED, "alpine@sha256:" + "a" * 64}), SandboxLimits())
+
+    with pytest.raises(ConfigError, match="digest"):
+        Settings(data_dir=tmp_path, sandbox_images=frozenset({TAG})).validate()
+    Settings(data_dir=tmp_path, sandbox_images=frozenset({FAKE_PINNED})).validate()
+
+
+class StuckDockerClient:
+    """A docker client that never exits, even after it is killed."""
+
+    def __init__(self, *args, **kwargs):
+        self.stdin, self.stdout, self.stderr = io.BytesIO(), io.BytesIO(), io.BytesIO()
+        self.returncode = None
+
+    def wait(self, timeout=None):
+        raise subprocess.TimeoutExpired("docker", timeout)
+
+    def kill(self):
+        pass
+
+
+def test_stuck_client_after_timeout_is_reported_not_raised(tmp_path, monkeypatch):
+    killed = []
+    monkeypatch.setattr(sandbox_module.subprocess, "Popen", StuckDockerClient)
+    monkeypatch.setattr(sandbox_module, "_kill", lambda name, proc: killed.append(name))
+    monkeypatch.setattr(Sandbox, "_check", lambda self, image, code_dir, payload: code_dir)
+    box = Sandbox(tmp_path, frozenset({FAKE_PINNED}), SandboxLimits(timeout_s=0.01))
+
+    result = box.run(FAKE_PINNED, tmp_path, ["sleep", "60"], b"{}")
+
+    assert killed, "the container should still be killed"
+    assert result.timed_out and result.exit_code is None and not result.ok
 
 
 def test_rejects_unlisted_image_and_outside_dirs(tmp_path):
@@ -37,13 +100,9 @@ def test_rejects_unlisted_image_and_outside_dirs(tmp_path):
         box.run(IMAGE, repos / "x", ["true"], b"x" * 100_000)
 
 
-def _docker_ready() -> bool:
-    if not shutil.which("docker"):
-        return False
-    return subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True).returncode == 0
-
-
-docker = pytest.mark.skipif(not _docker_ready(), reason=f"needs Docker with {IMAGE} pulled")
+# Sandbox only accepts Linux-style code paths (SAFE_PATH), so real-container tests need a Linux host.
+docker = pytest.mark.skipif(DIGEST is None or sys.platform == "win32",
+                            reason=f"needs a Linux host with Docker and {TAG} pulled")
 
 
 @pytest.fixture

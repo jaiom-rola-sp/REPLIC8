@@ -7,6 +7,7 @@ command, and the command that calls one function through the shim.
 from __future__ import annotations
 
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -64,3 +65,23 @@ def callable_symbols(repo_root: Path, symbols: list[Symbol]) -> list[Symbol]:
         if f'"{name}"' in texts[sym.file] or f"'{name}'" in texts[sym.file]:
             kept.append(sym)
     return kept
+
+
+def pin_local_image(image: str = LEGACY_IMAGE) -> str:
+    """The digest-pinned reference of a locally built image (`name:tag@sha256:...`).
+
+    Uses the registry digest if the image has one, otherwise the local image digest
+    (Docker's containerd image store accepts either with `--pull never`).
+    """
+    out = subprocess.run(["docker", "image", "inspect", image, "--format",
+                          "{{range .RepoDigests}}{{println .}}{{end}}|{{.Id}}"],
+                         capture_output=True, text=True, timeout=30)
+    if out.returncode != 0:
+        raise RuntimeError(f"image {image} not found; build it first (docker build -t {image} backend/runtime)")
+    repo_digests, _, image_id = out.stdout.strip().rpartition("|")
+    for line in repo_digests.split():
+        if "@sha256:" in line:
+            return f"{image}@{line.split('@', 1)[1]}"
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id.strip()):
+        raise RuntimeError(f"could not read the digest of {image}")
+    return f"{image}@{image_id.strip()}"

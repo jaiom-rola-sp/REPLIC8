@@ -13,7 +13,7 @@ from replic8.registry import Registry
 from replic8.sandbox import FunctionMissing
 from replic8.sources import SourceError, canonical_url, fetch
 
-from conftest import COMMIT, TOKEN, make_op, passed
+from conftest import ALL_SCOPES, COMMIT, TOKEN, make_op, passed
 
 ADMIN = "a" * 40
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -44,6 +44,7 @@ def reg(data_dir):
 
 
 def client(data_dir, reg, **kw):
+    kw.setdefault("token_scopes", ALL_SCOPES)
     settings = Settings(data_dir=data_dir, gateway_tokens=frozenset({TOKEN}), **kw)
     return TestClient(create_app(settings, reg, Exec()), base_url="http://127.0.0.1:8000")
 
@@ -193,3 +194,30 @@ def test_operator_examples_loosen_model_value_rules():
     assert fit_input_schema(schema, [{"part_id": 2210}]) is None          # wrong type
     assert fit_input_schema(schema, [{"partId": "PMP-2210"}]) is None     # wrong field name
     assert fit_input_schema(schema, []) == schema
+
+
+def test_scopes_limit_lists_and_calls(data_dir):
+    from replic8.config import token_id
+    r = Registry(data_dir)
+    r.publish("maintenance", "https://github.com/acme/b.git", COMMIT, [make_op()], {"maintenance.get_request": passed()})
+    inv = make_op("check_stock", ns="inventory")
+    r.publish("inventory", "https://github.com/acme/c.git", COMMIT, [inv], {inv.tool: passed()})
+    c = client(data_dir, r, token_scopes={token_id(TOKEN): frozenset({"inventory.*"})})
+    tools = [o["tool"] for o in c.get("/v1/operations", headers=AUTH).json()["operations"]]
+    assert tools == ["inventory.check_stock"]
+    blocked = c.post("/v1/operations/maintenance.get_request", json={"input": {"id": "1"}}, headers=AUTH)
+    assert blocked.status_code == 403 and "not allowed" in blocked.json()["detail"]
+    mcp = {**AUTH, "Accept": "application/json, text/event-stream", "MCP-Protocol-Version": "2025-06-18"}
+    with c:
+        listed = c.post("/mcp", headers=mcp, json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).json()
+        assert [t["name"] for t in listed["result"]["tools"]] == ["inventory.check_stock"]
+        call = c.post("/mcp", headers=mcp, json={"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                      "params": {"name": "maintenance.get_request", "arguments": {"id": "1"}}}).json()
+        assert call["result"]["isError"] is True
+
+
+def test_admin_tokens_are_unscoped_but_separate(data_dir, reg):
+    c = client(data_dir, reg, admin_tokens=frozenset({ADMIN}), token_scopes={})
+    assert c.get("/v1/operations", headers=AUTH).json()["operations"] == []  # gateway token, no scopes
+    admin = {"Authorization": f"Bearer {ADMIN}"}
+    assert len(c.get("/v1/operations", headers=admin).json()["operations"]) == 1

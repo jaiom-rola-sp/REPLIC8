@@ -1,7 +1,7 @@
 """MCP server for the gateway (FR-2, FR-5): every published read operation as an MCP tool.
 
 Served over Streamable HTTP at /mcp with the same bearer tokens as REST. Each
-tools/call goes through the same validate_call and Executor as REST, so the
+tools/call goes through the same Validator.validate_call and Executor as REST, so the
 write block, schemas, rate limit, audit log and self-heal trigger all apply.
 """
 
@@ -13,26 +13,27 @@ from typing import Any, Callable
 
 import anyio
 import mcp.types as types
-from fastapi import HTTPException
 from mcp.server.lowlevel import Server
 
 from .executor import Executor
 from .models import Access
 from .registry import Registry
 from .sandbox import SandboxError
-from .security import Guard
+from .validator import Denied, Validator
 
 # The caller's token for this request, set by the auth wrapper below. Never logged.
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("replic8_mcp_key", default="")
 
 
-def build_mcp(registry: Registry, guard: Guard, executor: Executor,
+def build_mcp(registry: Registry, validator: Validator, executor: Executor,
               on_failure: Callable[[str, SandboxError], Any]) -> Server:
     async def list_tools(ctx, params) -> types.ListToolsResult:
-        guard.authenticate(current_key.get())
+        who = validator.authenticate(current_key.get())
         tools = []
         for tool, (op, version) in sorted(registry.live_operations().items()):
-            if op.access is Access.write and tool not in guard.settings.write_allowlist:
+            if op.access is Access.write and tool not in validator.settings.write_allowlist:
+                continue
+            if not validator.allowed(who, tool):
                 continue
             tools.append(types.Tool(
                 name=tool,
@@ -46,9 +47,10 @@ def build_mcp(registry: Registry, guard: Guard, executor: Executor,
     async def call_tool(ctx, params: types.CallToolRequestParams) -> types.CallToolResult:
         args = params.arguments or {}
         try:
-            op, version = guard.validate_call(current_key.get(), params.name, args)
-        except HTTPException as exc:
-            return _error(str(exc.detail))
+            approved = validator.validate_call(current_key.get(), params.name, args)
+        except Denied as exc:
+            return _error(exc.message)
+        op, version = approved.op, approved.version
         try:
             result = await anyio.to_thread.run_sync(executor.call, op, version, args)
         except SandboxError as exc:
@@ -74,9 +76,9 @@ def _error(message: str) -> types.CallToolResult:
 class McpAuth:
     """ASGI wrapper: require a valid bearer token before any MCP traffic, and pass it to the handlers."""
 
-    def __init__(self, app, guard: Guard):
+    def __init__(self, app, validator: Validator):
         self.app = app
-        self.guard = guard
+        self.validator = validator
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -84,10 +86,10 @@ class McpAuth:
         auth = dict(scope.get("headers", [])).get(b"authorization", b"").decode("latin-1")
         key = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
         try:
-            self.guard.authenticate(key)
-        except HTTPException as exc:
-            body = json.dumps({"detail": exc.detail}).encode()
-            await send({"type": "http.response.start", "status": exc.status_code,
+            self.validator.authenticate(key)
+        except Denied as exc:
+            body = json.dumps({"detail": exc.message}).encode()
+            await send({"type": "http.response.start", "status": exc.status,
                         "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
             await send({"type": "http.response.body", "body": body})
             return
