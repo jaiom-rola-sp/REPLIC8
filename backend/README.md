@@ -40,8 +40,8 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `nemotron.py` | Nemotron client (OpenAI-compatible API): retries, timeouts, key safety | FR-2, FR-7 |
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
-| `extract.py` | tree-sitter symbols for COBOL paragraphs, Java methods and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
-| `runtimes.py` | Per-language image, build command, and call command (never from the model). COBOL, Fortran, Java, C, Pascal, Python, Perl and PHP build; only the first three can be called so far | FR-4, FR-11, FR-14 |
+| `extract.py` | tree-sitter symbols, confirmed against the source line: COBOL paragraphs, Fortran subroutines/functions, Java methods, C function definitions, Pascal procedures/functions, and top-level Python, Perl and PHP functions (no methods, nested functions, `main` or underscore names). Files are parsed in separate processes, several at once | FR-1, FR-11, FR-14 |
+| `runtimes.py` | Per-language image, build command, and call command (never from the model). COBOL, Fortran, Java, C, Pascal, Python, Perl and PHP build and have their functions found; only COBOL, Fortran and Java can be called so far (`PROTOCOL`) | FR-4, FR-11, FR-14 |
 
 ## Run it
 

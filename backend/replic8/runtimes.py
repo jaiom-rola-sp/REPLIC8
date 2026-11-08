@@ -37,10 +37,16 @@ RUNTIMES = {
 }
 
 
+# Languages whose programs speak the line protocol through the shim. C, Pascal, Python, Perl and PHP build
+# and run, but they are called another way (the Python caller and the command-line wrapper), so the protocol
+# command must never be built for them.
+PROTOCOL = {"cobol", "fortran", "java"}
+
+
 def argv_for(symbol: str, file: str) -> list[str]:
     """Command that calls `symbol` defined in `file`. Empty list means "can't call it"."""
     lang = language_of(PurePosixPath(file))
-    if lang not in RUNTIMES or not SYMBOL.match(symbol):
+    if lang not in PROTOCOL or not SYMBOL.match(symbol):
         return []
     if lang == "java":
         # All Java sources build into one jar (runtime/build.py).

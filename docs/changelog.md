@@ -2,6 +2,14 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-07: More languages, step 2: finding functions in C, Pascal, Python, Perl and PHP
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** `extract.py` now finds real functions in five more languages with the tree-sitter grammars: C function definitions (through pointer declarators, including old-style parameter lists; not declarations, not `main`), Pascal procedures and functions that have a body (not interface-only declarations, not nested ones), and top-level Python, Perl and PHP functions (no methods, nested functions, `main`, underscore names, or qualified Perl names). Each name is still confirmed to sit on its reported line, with a per-language pattern. Files are parsed in separate processes as before but up to 8 at once, which cut the cost from 138 ms to 44 ms per file on this machine. Bug found by an existing test and fixed: `argv_for` would have built a line-protocol command for a Python, C, Pascal, Perl or PHP file, pointing at a binary that does not exist; it now returns nothing for them (`PROTOCOL` = COBOL, Fortran, Java) until B3 and B4 give them their own calling methods. `deploy/vm/setup.sh` now downloads whatever grammars the code has extractors for, instead of a hand-written list of three.
+- **Requirement(s):** FR-11, FR-14
+- **Validation:** 185 backend tests pass (13 new, 6 skipped need an extra image): exact names and lines for each language including the trap cases, unparsable files reported and not trusted, file extensions, name confirmation, parallel parsing in file order, and the protocol command refusal. Not tested: real third-party projects, very old dialects, a deploy on the Azure VM. Known: a Python, Perl, PHP, C or Pascal repo now passes Detect, Build and finds its functions, but still stops at "Find the functions" with "no callable functions found" because the calling methods are not built yet.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Demo script, fallback video, tunnel fallback, scopes template, security gaps
 
 - **Who:** Aryan Mandapati
