@@ -1,0 +1,60 @@
+{
+  "company_name": "REPLIC8",
+  "tagline": "Turn legacy code into reliable, agent-ready APIs and MCP servers.",
+  "problem": [
+    "Critical business logic is trapped in legacy languages (COBOL, old Java, Fortran) that modern tools and AI cannot access.",
+    "M&A leaves enterprises with siloed legacy systems that cannot communicate.",
+    "Custom API wrappers take months to build and break whenever source code changes.",
+    "Connecting AI directly to legacy code is risky due to missing tests, lack of audit trails, and write risks."
+  ],
+  "solution": [
+    "Instant ingestion: Paste a GitHub repo to automatically extract functions and generate REST APIs and MCP servers.",
+    "Unified gateway: Consolidate multiple legacy systems into a single endpoint for AI agents.",
+    "Guaranteed safety: Every operation is verified in a Docker sandbox before publishing.",
+    "Self-healing: Automatically detects source code changes, repairs broken endpoints, tests them, and versions the fix.",
+    "Dependency mapping: Visualizes shared data fields across parent and legacy systems in real time."
+  ],
+  "market": [
+    "Target customers: Enterprises with inherited or acquired legacy stacks (finance, insurance, energy, manufacturing, logistics, public sector).",
+    "Buyers & users: Platform, integration, and AI engineering teams.",
+    "Adoption path: Start with low-risk, read-only data access for AI agents.",
+    "Growth driver: Enterprise AI adoption requires access to trapped legacy data.",
+    "TAM / SAM / SOM: [TBD: Market sizing data]"
+  ],
+  "product": [
+    "Multi-tier parsing: Combines AST parsing (tree-sitter), LLM inference, and CLI wrappers with transparency per endpoint.",
+    "Dual generation: Produces MCP servers and OpenAPI specs traced directly to source line numbers.",
+    "Safe by default: Read-only access out of the box; write actions require manual approval.",
+    "Isolated execution: Runs in an offline sandbox; AI selects endpoints but never executes unverified code.",
+    "Operational dashboard: System graph, versioning, one-click repair, rollbacks, and interactive testing.",
+    "Tenant workspaces: Isolated customer environments with token-based access."
+  ],
+  "traction": [
+    "End-to-end MVP: Unified a COBOL oilfield tool and legacy Java inventory into a single MCP/REST API.",
+    "Proven self-healing: Automatically detected a renamed COBOL function, restored parity, and deployed v2 in ~6 seconds.",
+    "Live platform: Multi-workspace web dashboard running at replic8.work.",
+    "Robust foundation: Hackathon-built with 265 passing backend tests.",
+    "Pipeline: [TBD: Pilots, waitlist, or user metrics]"
+  ],
+  "business_model": [
+    "SaaS subscription: Tiered by connected systems and active endpoints.",
+    "Enterprise add-ons: On-premises sandboxes, custom compliance modules, and dedicated support.",
+    "Go-to-market: Land via read-only access for one team, then expand across business units and stacks.",
+    "Unit economics: [TBD]"
+  ],
+  "competition": {
+    "our_advantages": [
+      "Native agent support: Built-in MCP integration alongside standard REST.",
+      "Deterministic safety: Sandboxed contract tests ensure zero model-generated code errors.",
+      "Resilience: Automated self-healing and versioning prevent broken integrations.",
+      "Broad compatibility: Works directly on raw source across legacy languages."
+    ]
+  },
+  "team": [
+    "Jaiom Rola: [TBD]",
+    "Aryan: [TBD]",
+    "Toni: [TBD]",
+    "Krish: [TBD: Security Lead]",
+    "Advisors: [TBD]"
+  ]
+}
