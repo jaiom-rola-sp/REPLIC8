@@ -2,8 +2,14 @@
       *> SUBSIDIARY B - FIELD MAINTENANCE SYSTEM (FMS)
       *> Oilfield services: maintenance requests for well equipment.
       *> Demo stand-in for REPLIC8 (FR-10). Read-only lookups.
-      *> Release 2: wells, technicians, service history, downtime
-      *> cost and well risk scoring.
+      *> CHANGE LOG
+      *>   1991-04-02  RJM  ORIGINAL VERSION (REQUEST LOOKUP).
+      *>   1993-11-19  RJM  LIST-OPEN-REQUESTS FOR FIELD SUPERVISORS.
+      *>   1998-08-30  TKW  Y2K - OPENED DATE NOW CCYY-MM-DD.
+      *>   2004-02-11  DLP  RELEASE 2 - WELLS, TECHS, SERVICE HISTORY.
+      *>   2006-07-25  DLP  CR-4471 DOWNTIME COST FOR FINANCE.
+      *>   2009-03-03  SAB  CR-5120 WELL RISK SCORE (SEE MEMO 09-14).
+      *>   2011-10-17  SAB  CR-5388 OIL PRICE WAS 65.00, NOW 88.00.
       *> Line protocol: command on line 1, KEY=VALUE lines, END.
       *> ============================================================
        IDENTIFICATION DIVISION.
@@ -66,13 +72,25 @@
        01  WS-TECH-STATUS      PIC XX.
        01  WS-HIST-STATUS      PIC XX.
        01  WS-EOF2             PIC X VALUE "N".
+           88 AUX-AT-END       VALUE "Y".
+           88 AUX-MORE         VALUE "N".
        01  WS-EOF              PIC X VALUE "N".
+           88 REQ-AT-END       VALUE "Y".
        01  WS-FOUND            PIC X VALUE "N".
        01  WS-CMD              PIC X(40).
        01  WS-LINE             PIC X(80).
        01  WS-KEY              PIC X(30).
        01  WS-VAL              PIC X(40).
        01  WS-GUARD            PIC 99 VALUE 0.
+       01  WS-CMD-R2           PIC X(40) VALUE SPACES.
+      *> NO LONGER USED AFTER 1998 - LEAVE IN PLACE (TKW)
+       01  WS-OLD-YY           PIC 99 VALUE 0.
+       01  WS-PAGE-CTR         PIC 9(3) VALUE 0.
+       01  WS-LINE-CTR         PIC 9(3) VALUE 60.
+       01  W-CTR1              PIC 9(4) VALUE 0.
+       01  SAVE-AREA-2         PIC X(61) VALUE SPACES.
+       01  WS-RPT-HDR          PIC X(40)
+               VALUE "FMS WELL STATUS REPORT    PAGE ".
        01  WS-IN-REQ-ID        PIC X(8) VALUE SPACES.
        01  WS-IN-WELL-ID       PIC X(8) VALUE SPACES.
        01  WS-IN-SITE          PIC X(10) VALUE SPACES.
@@ -139,23 +157,8 @@
                    PERFORM GET-REQUEST
                WHEN "LIST-OPEN-REQUESTS"
                    PERFORM LIST-OPEN-REQUESTS
-               WHEN "LIST-SITE-REQUESTS"
-                   PERFORM LIST-SITE-REQUESTS
-               WHEN "GET-WELL"
-                   PERFORM GET-WELL
-               WHEN "GET-SERVICE-HISTORY"
-                   PERFORM GET-SERVICE-HISTORY
-               WHEN "GET-TECHNICIAN"
-                   PERFORM GET-TECHNICIAN
-               WHEN "FIND-AVAILABLE-TECHS"
-                   PERFORM FIND-AVAILABLE-TECHS
-               WHEN "CALC-DOWNTIME-COST"
-                   PERFORM CALC-DOWNTIME-COST
-               WHEN "GET-WELL-RISK"
-                   PERFORM GET-WELL-RISK
                WHEN OTHER
-                   DISPLAY "ERROR=UNKNOWN-COMMAND"
-                   MOVE 2 TO RETURN-CODE
+                   PERFORM R2-DISPATCH THRU R2-DISPATCH-EXIT
            END-EVALUATE
            STOP RUN.
 
@@ -259,8 +262,46 @@
            MOVE WS-COUNT TO WS-COUNT-OUT
            DISPLAY "COUNT=" FUNCTION TRIM(WS-COUNT-OUT).
 
+
       *> ------------------------------------------------------------
-      *> Release 2 operations
+      *> RELEASE 2 COMMANDS (DLP 2004). KEPT OUT OF THE MAIN EVALUATE
+      *> SO THE 1991 PROGRAM DID NOT NEED RE-CERTIFICATION.
+      *> ------------------------------------------------------------
+       R2-DISPATCH.
+           MOVE FUNCTION TRIM(WS-CMD) TO WS-CMD-R2
+           IF WS-CMD-R2 = "LIST-SITE-REQUESTS"
+               PERFORM LIST-SITE-REQUESTS
+               GO TO R2-DISPATCH-EXIT.
+           IF WS-CMD-R2 = "GET-WELL"
+               PERFORM GET-WELL THRU GET-WELL-EXIT
+               GO TO R2-DISPATCH-EXIT.
+           IF WS-CMD-R2 = "GET-SERVICE-HISTORY"
+               PERFORM GET-SERVICE-HISTORY THRU GSH-EXIT
+               GO TO R2-DISPATCH-EXIT.
+           IF WS-CMD-R2 = "GET-TECHNICIAN"
+               PERFORM GET-TECHNICIAN
+               GO TO R2-DISPATCH-EXIT.
+           IF WS-CMD-R2 = "FIND-AVAILABLE-TECHS"
+               PERFORM FIND-AVAILABLE-TECHS
+               GO TO R2-DISPATCH-EXIT.
+      *>   CR-4471
+           IF WS-CMD-R2 = "CALC-DOWNTIME-COST"
+               PERFORM CALC-DOWNTIME-COST THRU CDC-EXIT
+               GO TO R2-DISPATCH-EXIT.
+      *>   CR-5120
+           IF WS-CMD-R2 = "GET-WELL-RISK"
+               PERFORM GET-WELL-RISK THRU GWR-EXIT
+               GO TO R2-DISPATCH-EXIT.
+      *>   IF WS-CMD-R2 = "PRINT-WELL-RPT"
+      *>       PERFORM OLD-PRINT-WELL-RPT
+      *>       GO TO R2-DISPATCH-EXIT.
+           DISPLAY "ERROR=UNKNOWN-COMMAND"
+           MOVE 2 TO RETURN-CODE.
+       R2-DISPATCH-EXIT.
+           EXIT.
+
+      *> ------------------------------------------------------------
+      *> RELEASE 2 FILE HANDLING AND OPERATIONS
       *> ------------------------------------------------------------
 
        OPEN-WELLS-FILE.
@@ -270,7 +311,7 @@
                MOVE 3 TO RETURN-CODE
                STOP RUN
            END-IF
-           MOVE "N" TO WS-EOF2.
+           SET AUX-MORE TO TRUE.
 
        OPEN-TECHS-FILE.
            OPEN INPUT TECH-FILE
@@ -279,7 +320,7 @@
                MOVE 3 TO RETURN-CODE
                STOP RUN
            END-IF
-           MOVE "N" TO WS-EOF2.
+           SET AUX-MORE TO TRUE.
 
        OPEN-HISTORY-FILE.
            OPEN INPUT HIST-FILE
@@ -288,7 +329,7 @@
                MOVE 3 TO RETURN-CODE
                STOP RUN
            END-IF
-           MOVE "N" TO WS-EOF2.
+           SET AUX-MORE TO TRUE.
 
       *> Turn YYYY-MM-DD in WS-DATE-IN into a day number.
        CONVERT-DATE.
@@ -311,15 +352,15 @@
        FIND-WELL.
            MOVE "N" TO WS-FOUND
            PERFORM OPEN-WELLS-FILE
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ WELL-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF WL-ID = WS-IN-WELL-ID
                            MOVE WELL-REC TO WS-WELL-SAVE
                            MOVE "Y" TO WS-FOUND
-                           MOVE "Y" TO WS-EOF2
+                           SET AUX-AT-END TO TRUE
                        END-IF
                END-READ
            END-PERFORM
@@ -385,7 +426,7 @@
            PERFORM FIND-WELL
            IF WS-FOUND NOT = "Y"
                PERFORM WELL-NOT-FOUND
-               EXIT PARAGRAPH
+               GO TO GET-WELL-EXIT
            END-IF
            PERFORM COUNT-WELL-REQUESTS
            DISPLAY "FOUND=Y"
@@ -399,19 +440,21 @@
            MOVE WS-OPEN-CNT TO WS-COUNT-OUT
            DISPLAY "OPEN-REQUESTS=" FUNCTION TRIM(WS-COUNT-OUT).
 
+       GET-WELL-EXIT.
+           EXIT.
       *> Service and failure events for one well, newest last.
        GET-SERVICE-HISTORY.
            PERFORM FIND-WELL
            IF WS-FOUND NOT = "Y"
                PERFORM WELL-NOT-FOUND
-               EXIT PARAGRAPH
+               GO TO GSH-EXIT
            END-IF
            MOVE 0 TO WS-FAIL-CNT WS-DOWN-HRS
            PERFORM OPEN-HISTORY-FILE
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ HIST-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF HS-WELL = WS-IN-WELL-ID
                            ADD 1 TO WS-COUNT
@@ -433,10 +476,10 @@
            DISPLAY "DOWNTIME-HOURS=" FUNCTION TRIM(WS-HRS-OUT)
            DISPLAY "BEGIN-ITEMS"
            PERFORM OPEN-HISTORY-FILE
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ HIST-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF HS-WELL = WS-IN-WELL-ID
                            DISPLAY "DATE=" FUNCTION TRIM(HS-DATE)
@@ -454,18 +497,20 @@
            MOVE WS-COUNT TO WS-COUNT-OUT
            DISPLAY "COUNT=" FUNCTION TRIM(WS-COUNT-OUT).
 
+       GSH-EXIT.
+           EXIT.
       *> One field technician by ID.
        GET-TECHNICIAN.
            MOVE "N" TO WS-FOUND
            PERFORM OPEN-TECHS-FILE
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ TECH-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF TC-ID = WS-IN-TECH-ID
                            MOVE "Y" TO WS-FOUND
-                           MOVE "Y" TO WS-EOF2
+                           SET AUX-AT-END TO TRUE
                        END-IF
                END-READ
            END-PERFORM
@@ -490,10 +535,10 @@
            PERFORM OPEN-TECHS-FILE
            DISPLAY "SITE=" FUNCTION TRIM(WS-IN-SITE)
            DISPLAY "BEGIN-ITEMS"
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ TECH-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF TC-SITE = WS-IN-SITE
                           AND TC-STATUS = "AVAILABLE"
@@ -520,22 +565,24 @@
            IF FUNCTION TRIM(WS-IN-DAYS) = SPACES
               OR FUNCTION TEST-NUMVAL(WS-IN-DAYS) NOT = 0
                DISPLAY "ERROR=BAD-DAYS"
-               EXIT PARAGRAPH
+               GO TO CDC-EXIT
            END-IF
            IF FUNCTION NUMVAL(WS-IN-DAYS) < 1
               OR FUNCTION NUMVAL(WS-IN-DAYS) > 365
               OR FUNCTION NUMVAL(WS-IN-DAYS) NOT =
                  FUNCTION INTEGER(FUNCTION NUMVAL(WS-IN-DAYS))
                DISPLAY "ERROR=BAD-DAYS"
-               EXIT PARAGRAPH
+               GO TO CDC-EXIT
            END-IF
            COMPUTE WS-DAYS = FUNCTION NUMVAL(WS-IN-DAYS)
            PERFORM FIND-WELL
            IF WS-FOUND NOT = "Y"
                PERFORM WELL-NOT-FOUND
-               EXIT PARAGRAPH
+               GO TO CDC-EXIT
            END-IF
            COMPUTE WS-LOST-BBL = WV-BBL-DAY * WS-DAYS
+      *>   COMPUTE WS-DAILY-LOSS = WV-BBL-DAY * 65.00
+      *>   ^^^ PRE CR-5388. KEEP FOR AUDIT.
            COMPUTE WS-DAILY-LOSS ROUNDED = WV-BBL-DAY * WS-OIL-PRICE
            COMPUTE WS-TOTAL-LOSS ROUNDED = WS-DAILY-LOSS * WS-DAYS
            DISPLAY "FOUND=Y"
@@ -554,6 +601,8 @@
            MOVE WS-TOTAL-LOSS TO WS-MONEY-OUT
            DISPLAY "TOTAL-LOSS-USD=" FUNCTION TRIM(WS-MONEY-OUT).
 
+       CDC-EXIT.
+           EXIT.
       *> Risk score for one well (0-100):
       *>   shut in +40, each open HIGH request +20, other open +5,
       *>   each failure in the 365 days before AS-OF-DATE +10,
@@ -567,13 +616,13 @@
            PERFORM CONVERT-DATE
            IF WS-DATE-OK NOT = "Y"
                DISPLAY "ERROR=BAD-AS-OF-DATE"
-               EXIT PARAGRAPH
+               GO TO GWR-EXIT
            END-IF
            MOVE WS-DAY-NUM TO WS-ASOF-DAY
            PERFORM FIND-WELL
            IF WS-FOUND NOT = "Y"
                PERFORM WELL-NOT-FOUND
-               EXIT PARAGRAPH
+               GO TO GWR-EXIT
            END-IF
            PERFORM COUNT-WELL-REQUESTS
            MOVE 0 TO WS-SCORE WS-FAIL-12M
@@ -585,10 +634,10 @@
            COMPUTE WS-SCORE = WS-SCORE + WS-HIGH-CNT * 20
                + (WS-OPEN-CNT - WS-HIGH-CNT) * 5
            PERFORM OPEN-HISTORY-FILE
-           PERFORM UNTIL WS-EOF2 = "Y"
+           PERFORM UNTIL AUX-AT-END
                READ HIST-FILE
                    AT END
-                       MOVE "Y" TO WS-EOF2
+                       SET AUX-AT-END TO TRUE
                    NOT AT END
                        IF HS-WELL = WS-IN-WELL-ID
                           AND HS-EVENT = "FAILURE"
@@ -616,16 +665,20 @@
            IF WS-SCORE > 100
                MOVE 100 TO WS-SCORE
            END-IF
-           EVALUATE TRUE
-               WHEN WS-SCORE >= 70
-                   MOVE "CRITICAL" TO WS-RISK
-               WHEN WS-SCORE >= 40
+      *>   BANDS PER MEMO 09-14. DO NOT CHANGE WITHOUT OPS SIGN-OFF.
+           IF WS-SCORE NOT < 70
+               MOVE "CRITICAL" TO WS-RISK
+           ELSE
+               IF WS-SCORE NOT < 40
                    MOVE "HIGH" TO WS-RISK
-               WHEN WS-SCORE >= 20
-                   MOVE "MEDIUM" TO WS-RISK
-               WHEN OTHER
-                   MOVE "LOW" TO WS-RISK
-           END-EVALUATE
+               ELSE
+                   IF WS-SCORE NOT < 20
+                       MOVE "MEDIUM" TO WS-RISK
+                   ELSE
+                       MOVE "LOW" TO WS-RISK
+                   END-IF
+               END-IF
+           END-IF
            DISPLAY "FOUND=Y"
            DISPLAY "WELL-ID=" FUNCTION TRIM(WV-ID)
            DISPLAY "AS-OF-DATE=" FUNCTION TRIM(WS-IN-AS-OF)
@@ -640,3 +693,28 @@
            MOVE WS-FAIL-12M TO WS-COUNT-OUT
            DISPLAY "FAILURES-12M=" FUNCTION TRIM(WS-COUNT-OUT)
            DISPLAY "SERVICE-OVERDUE=" WS-SVC-STALE.
+       GWR-EXIT.
+           EXIT.
+
+      *> ------------------------------------------------------------
+      *> OLD 132-COLUMN WELL REPORT. REPLACED BY THE FMS SCREENS IN
+      *> 1998. NOT CALLED. DO NOT DELETE - BATCH JCL STILL NAMES IT.
+      *> ------------------------------------------------------------
+       OLD-PRINT-WELL-RPT.
+           ADD 1 TO WS-PAGE-CTR
+           MOVE 0 TO WS-LINE-CTR
+           PERFORM OPEN-WELLS-FILE
+           PERFORM UNTIL AUX-AT-END
+               READ WELL-FILE
+                   AT END
+                       SET AUX-AT-END TO TRUE
+                   NOT AT END
+                       ADD 1 TO W-CTR1 WS-LINE-CTR
+                       IF WS-LINE-CTR > 55
+                           ADD 1 TO WS-PAGE-CTR
+                           MOVE 0 TO WS-LINE-CTR
+                       END-IF
+                       MOVE WELL-REC TO SAVE-AREA-2
+               END-READ
+           END-PERFORM
+           CLOSE WELL-FILE.

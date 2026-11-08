@@ -17,6 +17,8 @@ from replic8.registry import Registry
 from replic8.runtimes import LEGACY_IMAGE, RUNTIMES, argv_for, callable_symbols, pin_local_image
 from replic8.sandbox import Sandbox
 
+from replic8.guard import decide_access
+from replic8.models import Access
 from conftest import ALL_SCOPES, TOKEN
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -97,8 +99,20 @@ def test_only_dispatchable_symbols_are_offered():
         "GET-TECHNICIAN", "GET-WELL", "GET-WELL-RISK", "LIST-OPEN-REQUESTS", "LIST-SITE-REQUESTS"]
     assert sorted(s.name for s in callable_symbols(C, extract_symbols(C)[0])) == [
         "checkStock", "getCheapestShipping", "getPartSourcing", "getShippingOptions", "getSupplier",
-        "getWarehouse", "listLowStock", "listPurchaseOrders", "quoteDelivery"]
+        "getWarehouse", "listLowStock", "listPoLines", "quoteDelivery"]
 
+
+
+def test_mrp400_offers_every_transaction_and_locks_writes():
+    """System D (MRP/400) dispatches by method name through its ENTRY tables."""
+    d = ROOT / "legacy" / "d-mrp400-java"
+    symbols, errors = extract_symbols(d)
+    assert errors == []
+    names = sorted(s.name for s in callable_symbols(d, symbols))
+    assert names == ["calcMachineHours", "calcMaterialNeeds", "calcRolledCost", "checkWoReadiness",
+                     "createWorkOrder", "explodeBom", "getBom", "getMachineStatus", "getPart", "getRouting",
+                     "getWorkOrder", "listOpenWorkOrders", "listReorder", "planReplenishment", "whereUsed"]
+    assert decide_access("createWorkOrder", "read") is Access.write
 
 def test_argv_is_built_by_replic8():
     assert argv_for("GET-REQUEST", "src/MAINT.cbl") == ["python3", "/replic8/shim.py", "/build/maint", "GET-REQUEST"]
