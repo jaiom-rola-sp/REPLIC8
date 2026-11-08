@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Merge Java switch and graph work into the propose prompt
+
+- **Who:** tonia (with Claude Code)
+- **What changed:** Merged origin/main (Company C in Java, known-good values, graph scaling). In `prompts.py`, kept the teammate's input-schema rule (strict inputs, no `pattern` unless the code enforces it, IDs may contain hyphens) and removed my overlapping wording; kept my call-protocol, field-name, description and output-schema rules, and the rule that `maxLength` comes from the field size in the code. In `.gitignore`, removed my `.env` block because the teammate's identical block covers it.
+- **Requirement(s):** FR-2, FR-6
+- **Commit:** this commit
+
 ## 2026-11-08: Ignore .env files repo-wide
 
 - **Who:** tonia (with Claude Code)
@@ -15,6 +22,45 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **What changed:** `prompts.py` rules now explain the call protocol (how input and output keys map to the legacy `KEY=VALUE` lines, `items`, `count`), require field names copied from the legacy keys so systems share names (e.g. `part_id`), and ask for agent-facing descriptions on each operation and property, strict inputs (`maxLength` from field sizes) and lenient outputs. Added `tests/test_prompts.py` (2 tests). Live run on B and C: all 4 operations accepted; known issue: `cost_usd` was typed as a string though the shim returns a number.
 - **Requirement(s):** FR-2, FR-6
 - **Commit:** c201d63
+
+## 2026-11-08: Company C is legacy Java; changelog merges without conflicts
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Replaced the Fortran demo system with `legacy/c-inventory-java` (J2SE 1.4 style Java: `checkStock`, `getShippingOptions`; same data and shared keys). Added Java to the runtime image (OpenJDK 17), a sandboxed jar build, a small-JVM call path in the shim, and tree-sitter Java method extraction. Example inputs given at onboarding now override the model's input rules when those reject real values (`schema_adjusted` event). Added `docs/changelog.md merge=union` to `.gitattributes` so simultaneous changelog entries no longer conflict. Tested live with Nemotron: COBOL and Java onboarded, the MCP demo chain answered, and the COBOL rename self-healed to v2. 130 tests.
+- **Requirement(s):** FR-1, FR-10, FR-11
+- **Commit:** this commit
+
+## 2026-11-07: Graph and lists that scale to hundreds of operations
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** A system with more than 4 operations now shows one summary node (counts by tier) that expands to at most 24 operations in a grid plus a "+N more" node that opens the filtered Operations list. The Operations table pages 50 at a time, and the system detail panel lists the first 50 with a link to the rest. Backend: `GET /v1/graph` now returns `system_links` (one compact entry per pair of systems) and caps the per-operation `edges` list at 2000 with a `truncated` flag, because links between operations grow with the square of the count (a shared field like `id` matches everywhere). The graph layout moved to `web/src/graphLayout.js` so it can be tested. Note: the backend still caps each import at 20 operations per system (`MAX_OPERATIONS` in `guard.py`); that limit is unchanged.
+- **Requirement(s):** FR-6, WEB-9 (new)
+- **Validation:** 135 backend tests pass (6 skipped, need an extra Docker image), including new graph-scaling tests; 16 web tests including a 395-operation layout with no overlapping nodes; the real dashboard was driven in headless Chrome against a mock gateway serving 395 operations across 12 systems (table pages, graph collapses to 25 nodes, expanding shows 24 plus "+96 more", that node opens the filtered list, inspector caps at 50), no page errors; and against the real backend with its 2 systems. Not tested: more than about a dozen systems at once (they are drawn in one row), and a real import producing more than 20 operations per system.
+- **Commit:** 63a3329
+
+## 2026-11-07: Graph shows every operation under its system, plus real links
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** The dashboard graph drew only one operation per system in demo mode (hardcoded) and none in connected mode (just "2 operations" text). Both modes now draw every operation under its system. Connected mode also reads `GET /v1/graph` and draws a dashed link between systems, labelled with the real field and its evidence (for example `part_id · recorded`). Updated the banner that said graph lines were only registration.
+- **Requirement(s):** FR-6, WEB-4
+- **Validation:** Real dashboard driven in headless Chrome, no page errors: demo graph shows 2 operations per system; connected graph shows all 4 real operations and the `part_id · recorded` link between maintenance and inventory.
+- **Commit:** 63a3329
+
+## 2026-11-07: Fix unusable maintenance tools; known-good values on import
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** A live import showed the maintenance tools rejected real IDs like `R-1001` (Nemotron wrote a letters-and-digits-only `pattern`) and that contract tests only ever saw invented IDs ("not found"), so the graph had no link between systems. Fixes: (1) the prompt no longer asks for patterns and warns that real IDs contain hyphens; (2) `POST /v1/admin/systems` accepts `known_values` (field name to real IDs), used as contract-test inputs, and a model-written `pattern` that rejects an operator-supplied value is dropped (types, lengths and the call shim's control-character checks stay; after merging with the Java-switch commit this is done by its `fit_input_schema`, which also loosens length and other value rules); (3) the import form has an optional "Known-good values" box. Re-importing maintenance gave v2 with real records recorded and four `part_id` data edges from maintenance to inventory.
+- **Requirement(s):** FR-3, FR-6, WEB-8
+- **Validation:** 132 backend tests pass (6 need an extra Docker image and were skipped), including the Docker lifecycle test; 9 web tests; live re-import from GitHub, then real calls: `R-1001` returns part `PMP-2210`, `check_stock` returns 12 on hand, shipping returns 2 carriers; the dashboard form was driven in headless Chrome with no page errors. Not tested: the self-heal rename on the new repos, and whether the pattern-dropping fired in the live run (the model wrote no pattern this time; it is covered by unit tests).
+- **Commit:** 63a3329
+
+## 2026-11-07: Import from GitHub in the dashboard, with live stages
+
+- **Who:** Claude (for Jaiom)
+- **What changed:** Replaced the "repository draft" dialog with a real import screen (`web/src/AddSystem.jsx`, `web/src/onboarding.js`): system name, public GitHub URL and an in-memory admin token start `POST /v1/admin/systems`, and the stages are shown live from `/v1/events`. Backend: the pipeline now emits `onboard_stage` events (fetch, detect, build, extract, propose, test, publish), reports any unexpected error and a missing Docker as `onboard_failed` instead of failing silently, and the admin endpoint rejects bad URLs (422) and busy systems (409) immediately. Removed the draft code. Established and Extension tabs are shown disabled.
+- **Requirement(s):** WEB-8 (new), FR-1, FR-6
+- **Validation:** 120 backend tests pass (13 need Docker and were skipped here); 7 web helper tests; a live run against a real gateway imported from GitHub (no-code repo stops at detect, missing repo stops at fetch, this repo reaches build and reports the missing Docker, a non-GitHub URL gets 422); the dashboard was driven in headless Chrome with no page errors. Not tested: a full import through propose, test and publish (needs Docker and a Nemotron key).
+- **Commit:** 63a3329
 
 ## 2026-11-08: MCP-first backend: contract tests, self-heal, dashboard APIs; Photon dropped; name is REPLIC8
 

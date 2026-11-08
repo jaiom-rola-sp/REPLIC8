@@ -27,7 +27,8 @@ def test_prompt_explains_call_protocol_names_and_descriptions():
     assert "when an agent should use it" in system
     assert 'Every property in both schemas' in system
     # Strict inputs, lenient outputs.
-    assert 'set "additionalProperties": false, and set string "maxLength"' in system
+    assert '"additionalProperties": false and a "maxLength" on every string' in system
+    assert 'Take each "maxLength" from the field size in the code' in system
     assert 'Don\'t set "additionalProperties": false on outputs' in system
 
 

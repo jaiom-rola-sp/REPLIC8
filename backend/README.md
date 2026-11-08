@@ -40,12 +40,12 @@ claude mcp add --transport http replic8 http://127.0.0.1:8000/mcp --header "Auth
 | `nemotron.py` | Nemotron client (OpenAI-compatible API): retries, timeouts, key safety | FR-2, FR-7 |
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
-| `extract.py` | tree-sitter symbols for COBOL paragraphs and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
+| `extract.py` | tree-sitter symbols for COBOL paragraphs, Java methods and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
 | `runtimes.py` | Per-language image, build command, and call command (never from the model) | FR-4, FR-11 |
 
 ## Run it
 
-The backend runs anywhere Python 3.11+ and Docker run. Legacy code always runs inside Linux containers, so COBOL and Fortran behave the same on every machine.
+The backend runs anywhere Python 3.11+ and Docker run. Legacy code always runs inside Linux containers, so COBOL and Java (and Fortran) behave the same on every machine.
 
 1. Install Docker (on Windows: Docker Desktop with the WSL2 backend).
 2. Build the legacy runtime image once: `docker build -t replic8-legacy-runtime:1 backend/runtime`
@@ -76,7 +76,7 @@ curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $A
 ```
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" -d '{"system":"inventory","repo_url":"local://c-inventory-fortran","examples":{"check_stock":[{"part_id":"PMP-2210"}]}}'
+curl -X POST http://127.0.0.1:8000/v1/admin/systems -H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json" -d '{"system":"inventory","repo_url":"local://c-inventory-java","examples":{"check_stock":[{"part_id":"PMP-2210"}],"get_shipping_options":[{"part_id":"PMP-2210","destination":"PERMIAN"}]}}'
 ```
 
 Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUEST` in `MAINT.cbl` (both places), then `POST /v1/admin/systems/maintenance/check`. In testing with live Nemotron, the repair was saved as v2 in about 6 seconds with identical answers. Undo the rename afterwards (`git checkout legacy/`).
@@ -90,11 +90,11 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 | `GET /v1/operations` | gateway or admin | Published tools (the dashboard reads this; fields unchanged) plus `output_schema` and `contract_cases` |
 | `POST /v1/operations/{tool}` | gateway or admin | Call a tool: `{"input": {...}}` returns `{"result", "provenance"}` |
 | `GET /v1/openapi.json` | gateway or admin | OpenAPI 3.1 for the enabled tools |
-| `GET /v1/graph` | gateway or admin | `{"nodes", "edges"}`; edges of type `data` come from real field names, with `evidence` `schema` or `recorded` |
-| `GET /v1/events?after=N` | gateway or admin | Activity log (onboarded, published, contract_failed, heal_started, heal_saved, rolled_back, ...) |
+| `GET /v1/graph` | gateway or admin | `{"nodes", "edges"}`; edges of type `data` come from real field names, with `evidence` `schema` or `recorded`. `system_links` has one compact entry per pair of systems (shared `fields`, strongest `evidence`, matching `operation_pairs`) and stays small however many operations match; `edges` is capped at 2000 data links and `truncated` is true when the cap was hit |
+| `GET /v1/events?after=N` | gateway or admin | Activity log (onboard_started, onboard_stage, onboarded, published, contract_failed, heal_started, heal_saved, rolled_back, ...) |
 | `GET /v1/systems` | gateway or admin | Each system's current version, tests and rejected operations |
 | `GET /v1/systems/{s}/versions` | gateway or admin | Version history |
-| `POST /v1/admin/systems` | admin | Onboard `{"system", "repo_url", "examples"?}` (runs in the background; watch events) |
+| `POST /v1/admin/systems` | admin | Onboard `{"system", "repo_url", "examples"?, "known_values"?}`. `known_values` maps an input field name to real IDs from the system's data (for example `{"request_id": ["R-1001"]}`); the contract tests use them so they hit real records, and a model-written `pattern` that rejects one is dropped. Returns 422 for a bad URL and 409 if the system is already being processed; otherwise it runs in the background and reports `onboard_stage` events (fetch, detect, build, extract, propose, test, publish), then `published` or `onboard_failed` |
 | `POST /v1/admin/systems/{s}/check` | admin | Check the legacy repo for changes; repair if needed |
 | `POST /v1/admin/systems/{s}/heal` | admin | Start a repair now |
 | `POST /v1/admin/systems/{s}/rollback` | admin | Serve an older version: `{"version": 1}` |
@@ -111,7 +111,7 @@ Watch `GET /v1/events`. For the live break, rename `GET-REQUEST` to `FETCH-REQUE
 cd backend
 pip install -e ".[dev]"
 docker pull alpine:3.20                            # optional: real sandbox tests
-docker build -t replic8-legacy-runtime:1 runtime   # optional: COBOL/Fortran end-to-end tests
+docker build -t replic8-legacy-runtime:1 runtime   # optional: COBOL/Java end-to-end tests
 pytest -q
 ```
 

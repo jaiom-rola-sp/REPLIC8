@@ -141,6 +141,11 @@ RULES = """Rules:
   shown in the FILE marker; "line" is the line number shown in the left column.
 - "access" is "write" if the function creates, changes, deletes, sends, or orders anything;
   otherwise "read". When unsure, use "write".
+- "input_schema" and "output_schema" are JSON Schema objects with "type": "object". Make input
+  schemas strict: "additionalProperties": false and a "maxLength" on every string. Do not add a
+  "pattern" unless the code itself enforces that exact format. Real IDs often contain hyphens, dots
+  or slashes (for example R-1001, PMP-2210), so never exclude them. REPLIC8 already rejects control
+  characters and "=" before anything reaches the legacy program.
 - "examples" is up to 3 realistic input objects for contract tests. Each must match input_schema.
   Use values that look like the ones the code works with.
 - Do not write code or commands. REPLIC8 builds the call to each function itself.
@@ -174,10 +179,9 @@ Descriptions (agents read these to choose and call a tool):
 - Add "enum" only to inputs, and only when the code accepts a fixed set of values. Don't put
   "examples" inside input_schema or output_schema; test inputs go in the operation's "examples".
 
-Schemas ("input_schema" and "output_schema" are JSON Schema objects with "type": "object"):
-- Input: list every property the function needs in "required", set "additionalProperties":
-  false, and set string "maxLength" from the field size in the code (PIC X(8) -> 8,
-  character(len=10) -> 10). Add "pattern" only when the code itself checks a format.
+Schemas (in addition to the input rules above):
+- Input: list every property the function needs in "required". Take each "maxLength" from the
+  field size in the code (PIC X(8) -> 8, character(len=10) -> 10).
 - Output: "required" lists only the properties printed on every path, including the not-found
   path. Describe "items" as an array of objects with their own properties. Don't set
   "additionalProperties": false on outputs.
