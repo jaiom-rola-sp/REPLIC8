@@ -144,11 +144,13 @@ Suggested order: build the demo systems and ingest, then generate and verify, th
 
 ## 11. Open questions
 
-- [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Open: do we still want one system to go through the `inferred` or `black-box` tier to prove "any language"?
+- [x] Which languages for B and C? **Decided 2026-11-07:** B is COBOL, C is Fortran. Both have tree-sitter grammars, so both can be `parsed`. Both demo systems use the `parsed` tier (Aryan, 2026-11-07); a `black-box` Fortran path is a stretch goal if time allows.
   Original question: To prove "any language," one should be `parsed` (has a tree-sitter grammar) and one should go through the `inferred` or `black-box` tier. Both need a simple Docker image.
 - [x] Which Nemotron model, and what API limits and key do we have? **Decided 2026-11-07:** `nvidia/nemotron-3.5-super-vl-120b-a12b` (early access). Key is in Aryan's cloud environment secrets, not the repo. Rate limits still unknown.
 - [ ] Which cloud provider and who owns the keys?
 - [ ] What shared key links B and C (e.g. a part ID) so the graph edge and the combined answer are real?
+  **Proposed 2026-11-08 (in the demo systems):** part ID (e.g. `PMP-2210`) and site region (e.g. `PERMIAN`). See `legacy/README.md`. Team to confirm.
+- [ ] Should each demo legacy system live in its own GitHub repo, so replic8 ingests it by URL? (Currently both are in `legacy/` in this repo.)
 - [ ] Where does the "combine B and C" step live: in Company A's agent, or as a cross-system operation inside Replic8?
 - [ ] Team roles: who owns ingest, generation, gateway, graph UI, the demo systems, Photon?
 - [ ] Security: who can call the gateway (token auth)? What data never leaves the machine? How are write operations authorized later?

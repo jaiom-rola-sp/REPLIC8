@@ -17,6 +17,8 @@ Python + FastAPI. See [docs/prd.md](../docs/prd.md) for the plan and [docs/secur
 | `nemotron.py` | Nemotron client (OpenAI-compatible API): retries, timeouts, key safety | FR-2, FR-7 |
 | `prompts.py` | Builds prompts: secret redaction, numbered files, injection fencing, source diffs | FR-2, FR-7 |
 | `generate.py` | Proposes operations and repairs; repairs can't change an operation's contract | FR-2, FR-7 |
+| `extract.py` | tree-sitter symbols for COBOL paragraphs and Fortran subroutines/functions, confirmed against the source | FR-1, FR-11 |
+| `runtimes.py` | Per-language image, build command, and call command (never from the model) | FR-4, FR-11 |
 | `notify.py` | Send-only owner texts (Photon transport still to do) | FR-12 |
 
 ## Run the tests
@@ -24,7 +26,8 @@ Python + FastAPI. See [docs/prd.md](../docs/prd.md) for the plan and [docs/secur
 ```bash
 cd backend
 pip install -e ".[dev]"
-docker pull alpine:3.20   # optional: enables the real sandbox tests
+docker pull alpine:3.20                                  # optional: real sandbox tests
+docker build -t replic8-legacy-runtime:1 runtime         # optional: COBOL/Fortran end-to-end test
 pytest -q
 ```
 

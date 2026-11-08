@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: COBOL and Fortran demo legacy systems
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Added `legacy/b-maintenance-cobol` (COBOL: `GET-REQUEST`, `LIST-OPEN-REQUESTS`) and `legacy/c-inventory-fortran` (Fortran: `check_stock`, `get_shipping_options`) with fixed-width data linked by part ID and site region. Added the runtime image (`backend/runtime/`: GnuCOBOL, gfortran, call shim, sandboxed build), tree-sitter extraction, and per-language runtimes. Live Nemotron picks exactly the four real operations. Recorded "both systems parsed". Added threats T20 to T22 and 14 tests (109 total), including an end-to-end COBOL and Fortran run through the gateway.
+- **Requirement(s):** FR-1, FR-4, FR-10, FR-11
+- **Commit:** this commit
+
 ## 2026-11-07: CLAUDE.md rule uses Sandbox.run
 
 - **Who:** Krish Thapa (with Claude)

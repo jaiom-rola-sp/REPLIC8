@@ -31,6 +31,9 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 | T16 | Prompt injection through code comments or the diff | Code and diffs are wrapped in markers with a random nonce, and the model is told their contents are data. This only lowers the risk; T5 and T6 are the real gate | `prompts.py` |
 | T17 | A self-heal silently changes what agents get | A repair must keep each operation's name and input/output schemas, can't add operations, and can't relabel a write as read. Anything else is rejected as a breaking change for a human | `generate.heal` |
 | T18 | Model writes code or a shell command that then runs | The model's answer has no command field at all (extra fields are rejected). replic8 builds each command from the language, file and function, and refuses any that starts a shell. Seen in live testing: the model tried inline `python3 -c` code | `guard.py`, `guard.SHELLS` |
+| T20 | Compiling legacy code attacks the host | The build runs in the sandbox too: no network, read-only code, only the build output folder writable, fixed compiler commands from replic8 | `sandbox.Sandbox.build`, `runtime/build.py` |
+| T21 | Caller input smuggles an extra command into the legacy program | The shim allows only short printable values with no `=` or newlines, and keys matching a strict pattern | `runtime/shim.py` |
+| T22 | Parser confusion on old dialects invents a function | When a grammar only partly parses a file, each symbol is kept only if its name is really on its reported line; the file is reported as partly parsed | `extract._confirmed` |
 | T19 | API key leaks or goes to the wrong host | Key only from `NVIDIA_API_KEY` (in the cloud session, injected by the network proxy so code never sees it); https-only base URL; redirects not followed; key kept out of logs, errors and `repr` | `nemotron.py` |
 
 ## Known gaps (not done yet)
@@ -40,4 +43,5 @@ How replic8's backend handles the trust problems in turning untrusted legacy cod
 - **Legacy code that needs its own database or a writable directory** won't run under `--read-only` without an extra tmpfs. Decide per demo system.
 - **Tokens** are static, shared secrets with no per-caller scopes or expiry. Fine for a demo, not for production.
 - **Redaction is pattern-based.** It catches common secret shapes, not all of them. Don't ingest repos with real customer data or live credentials.
-- **Not built yet:** tree-sitter extraction, contract-test generation, the sandbox shims that turn stdin JSON into a function call, the MCP server, self-healing, and the Photon transport (its API is unverified).
+- **Model-written input schemas can be wrong.** In live testing the model once wrote a `request_id` pattern that rejected the real ID `R-1001`. Contract tests with real example values must catch this before publishing.
+- **Not built yet:** contract-test generation, the MCP server, self-healing, and the Photon transport (its API is unverified).

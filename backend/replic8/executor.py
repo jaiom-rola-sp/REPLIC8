@@ -30,6 +30,10 @@ def checkout_dir(repos_root: Path, version: WrapperVersion) -> Path:
     return repos_root / f"{owner.lower()}__{repo.lower()}" / version.source_commit
 
 
+def build_dir(builds_root: Path, version: WrapperVersion) -> Path:
+    return checkout_dir(builds_root, version)
+
+
 def validate_input(op: Operation, payload: Any) -> None:
     errors = list(Draft202012Validator(op.input_schema).iter_errors(payload))
     if errors:
@@ -40,6 +44,11 @@ class Executor:
     def __init__(self, sandbox: Sandbox, repos_root: Path):
         self.sandbox = sandbox
         self.repos_root = repos_root
+        self.builds_root = sandbox.builds_root
+
+    def _existing_build(self, version: WrapperVersion) -> Path | None:
+        path = build_dir(self.builds_root, version)
+        return path if path.is_dir() else None
 
     def call(self, op: Operation, version: WrapperVersion, payload: dict[str, Any]) -> dict[str, Any]:
         validate_input(op, payload)
@@ -48,6 +57,7 @@ class Executor:
             checkout_dir(self.repos_root, version),
             op.invocation.argv,
             json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            build_dir=self._existing_build(version),
         )
         if result.timed_out:
             raise CallError("legacy system timed out", status=504)

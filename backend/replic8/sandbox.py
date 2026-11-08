@@ -38,7 +38,12 @@ class SandboxResult:
         return self.exit_code == 0 and not self.timed_out and not self.output_too_large
 
 
-def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits: SandboxLimits) -> list[str]:
+def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits: SandboxLimits,
+                  build_dir: Path | None = None, writable_build: bool = False) -> list[str]:
+    mounts = ["--mount", f"type=bind,source={code_dir},target=/app,readonly"]
+    if build_dir is not None:
+        ro = "" if writable_build else ",readonly"
+        mounts += ["--mount", f"type=bind,source={build_dir},target=/build{ro}"]
     return [
         "docker", "run", "--rm", "-i", "--init",
         "--name", name,
@@ -53,7 +58,7 @@ def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits
         "--cpus", limits.cpus,
         "--ulimit", "nofile=256:256",
         "--user", "65534:65534",
-        "--mount", f"type=bind,source={code_dir},target=/app,readonly",
+        *mounts,
         "--workdir", "/app",
         "--log-driver", "none",
         image,
@@ -61,11 +66,33 @@ def build_command(name: str, image: str, code_dir: Path, argv: list[str], limits
     ]
 
 
+# Compiling needs more memory and time than a lookup. Still no network.
+BUILD_LIMITS = SandboxLimits(timeout_s=180.0, memory="1g", cpus="1.0", pids=128,
+                             max_output_bytes=100_000, max_input_bytes=0)
+
+
 class Sandbox:
-    def __init__(self, repos_root: Path, allowed_images: frozenset[str], limits: SandboxLimits):
+    def __init__(self, repos_root: Path, allowed_images: frozenset[str], limits: SandboxLimits,
+                 builds_root: Path | None = None):
         self.repos_root = repos_root.resolve()
+        self.builds_root = (builds_root or repos_root.parent / "builds").resolve()
         self.allowed_images = allowed_images
         self.limits = limits
+
+    def _check_build_dir(self, build_dir: Path) -> Path:
+        resolved = build_dir.resolve()
+        if self.builds_root not in resolved.parents or not resolved.is_dir():
+            raise SandboxError("build directory must be under the builds dir")
+        if not SAFE_PATH.match(str(resolved)):
+            raise SandboxError("build directory path has unsafe characters")
+        return resolved
+
+    def build(self, image: str, code_dir: Path, build_dir: Path, argv: list[str]) -> SandboxResult:
+        """Compile legacy code. Only /build is writable; output goes there."""
+        build_dir.mkdir(parents=True, exist_ok=True)
+        build_dir.chmod(0o777)  # the container runs as nobody (65534)
+        return self.run(image, code_dir, argv, b"", build_dir=build_dir, writable_build=True,
+                        limits=BUILD_LIMITS)
 
     def _check(self, image: str, code_dir: Path, payload: bytes) -> Path:
         if image not in self.allowed_images:
@@ -79,13 +106,17 @@ class Sandbox:
             raise SandboxError("input too large")
         return resolved
 
-    def run(self, image: str, code_dir: Path, argv: list[str], payload: bytes) -> SandboxResult:
+    def run(self, image: str, code_dir: Path, argv: list[str], payload: bytes,
+            build_dir: Path | None = None, writable_build: bool = False,
+            limits: SandboxLimits | None = None) -> SandboxResult:
+        limits = limits or self.limits
         resolved = self._check(image, code_dir, payload)
+        build = self._check_build_dir(build_dir) if build_dir is not None else None
         name = f"replic8-{uuid.uuid4().hex}"
-        cmd = build_command(name, image, resolved, argv, self.limits)
+        cmd = build_command(name, image, resolved, argv, limits, build, writable_build)
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        limit = self.limits.max_output_bytes
+        limit = limits.max_output_bytes
         out = bytearray()
         err = bytearray()
         too_large = threading.Event()
@@ -122,7 +153,7 @@ class Sandbox:
             t.start()
         timed_out = False
         try:
-            proc.wait(timeout=self.limits.timeout_s)
+            proc.wait(timeout=limits.timeout_s)
         except subprocess.TimeoutExpired:
             timed_out = True
             _kill(name, proc)

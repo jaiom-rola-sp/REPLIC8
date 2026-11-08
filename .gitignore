@@ -2,7 +2,7 @@
 .graphifyignore
 graphify-out/
 backend/data/
-data/
+/data/
 __pycache__/
 *.egg-info/
 .pytest_cache/

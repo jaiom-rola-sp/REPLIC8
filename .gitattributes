@@ -1,0 +1,4 @@
+# Legacy demo code and fixed-width data must keep Unix line endings and exact columns.
+legacy/**/*.cbl text eol=lf whitespace=-trailing-space
+legacy/**/*.f90 text eol=lf
+legacy/**/*.dat text eol=lf whitespace=-trailing-space
