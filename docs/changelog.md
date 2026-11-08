@@ -2,6 +2,19 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Demo legacy systems grow to 9 operations each
+
+- **Who:** Claude (for Krish)
+- **What changed:**
+  - **B, COBOL (`legacy/b-maintenance-cobol`):** 7 new read-only paragraphs: `LIST-SITE-REQUESTS`, `GET-WELL`, `GET-SERVICE-HISTORY`, `GET-TECHNICIAN`, `FIND-AVAILABLE-TECHS`, `CALC-DOWNTIME-COST` (barrels/day x $88 x days), `GET-WELL-RISK` (score 0 to 100, LOW to CRITICAL). New data: `wells.dat`, `techs.dat`, `history.dat`, requests R-1006 to R-1013. Date math uses GnuCOBOL intrinsics against a fixed batch date (2026-11-08), so replayed answers never drift.
+  - **C, Java (`legacy/c-inventory-java`):** 7 new read-only methods: `getWarehouse`, `listLowStock`, `getSupplier`, `getPartSourcing`, `listPurchaseOrders`, `getCheapestShipping`, `quoteDelivery` (stock + lane or supplier-direct, cheapest first). New data: `catalog.dat`, `suppliers.dat`, `purchase_orders.dat`, an ODESSA warehouse in `stock.dat`, and new lanes (all from ODESSA). Still J2SE 1.4 style.
+  - **Nothing old moves:** original records and lanes are untouched and new records never touch the original wells or warehouses, so `GET-REQUEST`, `LIST-OPEN-REQUESTS`, `checkStock` and `getShippingOptions` give byte-identical output. The `GET-REQUEST` to `FETCH-REQUEST` rename still works.
+  - **Demo story:** W-44 is shut in, risk CRITICAL (80); 7 days down costs $443,520.00; Maria Alvarez (T-101) is the free Permian electrician; 2 x CBL-0500 cable reaches Permian from Odessa in 5 days for $20,325.50.
+  - `deploy/vm/onboard-demo.sh` passes real IDs for all 18 tools; `docs/demo.md` tool counts updated; `legacy/README.md` lists every operation; `test_legacy.py` expects the new operation lists.
+- **Requirement(s):** FR-10, FR-3
+- **Validation:** Compiled with GnuCOBOL 3.1.2 and javac 17 (the sandbox's toolchain). Original operations compared byte-for-byte against the previous programs and data (57 cases, all identical). All 14 new operations run and parse through `runtime/shim.py`, including bad input (bad dates, days and quantities, unknown IDs). The self-heal `sed` from `docs/demo.md` recompiles and REPLIC8 offers `FETCH-REQUEST`. 231 backend tests pass, 43 skipped (they need Docker, not available where this was built). Not yet run: a full Docker onboarding with Nemotron.
+- **Commit:** "Expand demo legacy systems to 9 read-only operations each" on branch `legacy-expand` (not yet merged to `main`)
+
 ## 2026-11-08: Sandbox runs on Docker Desktop's classic image store
 
 - **Who:** Claude (for Aryan)

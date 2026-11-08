@@ -92,8 +92,12 @@ def test_symbol_must_be_on_its_reported_line():
 # ---------- runtime table ----------
 
 def test_only_dispatchable_symbols_are_offered():
-    assert sorted(s.name for s in callable_symbols(B, extract_symbols(B)[0])) == ["GET-REQUEST", "LIST-OPEN-REQUESTS"]
-    assert sorted(s.name for s in callable_symbols(C, extract_symbols(C)[0])) == ["checkStock", "getShippingOptions"]
+    assert sorted(s.name for s in callable_symbols(B, extract_symbols(B)[0])) == [
+        "CALC-DOWNTIME-COST", "FIND-AVAILABLE-TECHS", "GET-REQUEST", "GET-SERVICE-HISTORY",
+        "GET-TECHNICIAN", "GET-WELL", "GET-WELL-RISK", "LIST-OPEN-REQUESTS", "LIST-SITE-REQUESTS"]
+    assert sorted(s.name for s in callable_symbols(C, extract_symbols(C)[0])) == [
+        "checkStock", "getCheapestShipping", "getPartSourcing", "getShippingOptions", "getSupplier",
+        "getWarehouse", "listLowStock", "listPurchaseOrders", "quoteDelivery"]
 
 
 def test_argv_is_built_by_replic8():
