@@ -98,8 +98,9 @@ On macOS or Linux, see [backend/README.md](backend/README.md).
 EASIER*: Try this out if our local tunnel gateway is still running:
    input these values into their respective boxs after clicking "create workspace"
 ================ REPLIC8 ================
-Gateway address : https://replica8.tail6f2f22.ts.net/
+Gateway address : https://replica8.tail6f2f22.ts.net
 Admin token     : lEF3z1z_-TU0Rv-TQ9ggS6wV7J0IglNL6ddauX7CKWQ
+=========================================
 
 ### Everything else
 
