@@ -5,6 +5,7 @@ import pytest
 
 from replic8.config import SandboxLimits
 from replic8.executor import CallError, Executor
+from replic8.sandbox import OutputSchemaError
 from replic8.models import WrapperVersion
 from replic8.sandbox import Sandbox, SandboxError, build_command
 
@@ -109,5 +110,5 @@ def test_executor_end_to_end(box):
         executor.call(op, version, {"id": 7})
 
     bad = op.model_copy(update={"invocation": op.invocation.model_copy(update={"argv": sh('echo \'{"oops":1}\'')})})
-    with pytest.raises(CallError, match="schema"):
+    with pytest.raises(OutputSchemaError):
         executor.call(bad, version, {"id": "R-7"})

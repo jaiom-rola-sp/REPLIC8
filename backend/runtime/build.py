@@ -1,4 +1,4 @@
-"""replic8 build step. Runs inside the sandbox container only, with no network.
+"""REPLIC8 build step. Runs inside the sandbox container only, with no network.
 
 Compiles every COBOL and Fortran source under /app (read-only) into /build/<name>.
 The commands are fixed here; nothing comes from the model or the repo.

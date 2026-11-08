@@ -1,4 +1,4 @@
-"""replic8 call shim. Runs inside the sandbox container only.
+"""REPLIC8 call shim. Runs inside the sandbox container only.
 
 Usage: shim.py BINARY COMMAND
 Reads one JSON object from stdin, calls the compiled legacy program with the
@@ -8,6 +8,7 @@ Legacy line protocol (what the demo COBOL and Fortran programs speak):
   stdin:  COMMAND, then one KEY=VALUE line per input field, then END
   stdout: KEY=VALUE lines. BEGIN-ITEMS starts a list; a line "--" closes one item.
           ERROR=<code> means the call failed.
+Exit codes: 0 ok, 1 bad input or crash, 2 legacy error, 3 no such command (function missing).
 Keys go out upper-case with hyphens (part_id -> PART-ID) and come back lower-case
 with underscores. Values that look like numbers come back as numbers.
 """
@@ -108,9 +109,12 @@ def main():
         fail("legacy program timed out")
     if len(proc.stdout) > MAX_OUT:
         fail("legacy output too large")
+    text = proc.stdout.decode("ascii", "replace")
+    if "ERROR=UNKNOWN-COMMAND" in text:
+        fail("legacy program has no such command", code=3)  # FunctionMissing
     if proc.returncode != 0:
         fail(f"legacy program exited with {proc.returncode}")
-    print(json.dumps(from_legacy(proc.stdout.decode("ascii", "replace")), separators=(",", ":")))
+    print(json.dumps(from_legacy(text), separators=(",", ":")))
 
 
 if __name__ == "__main__":

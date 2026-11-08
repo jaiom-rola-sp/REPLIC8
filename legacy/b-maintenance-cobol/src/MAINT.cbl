@@ -1,7 +1,7 @@
       *> ============================================================
       *> SUBSIDIARY B - FIELD MAINTENANCE SYSTEM (FMS)
       *> Oilfield services: maintenance requests for well equipment.
-      *> Demo stand-in for replic8 (FR-10). Read-only lookups.
+      *> Demo stand-in for REPLIC8 (FR-10). Read-only lookups.
       *> Line protocol: command on line 1, KEY=VALUE lines, END.
       *> ============================================================
        IDENTIFICATION DIVISION.

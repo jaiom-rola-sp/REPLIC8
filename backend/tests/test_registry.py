@@ -22,7 +22,7 @@ def test_only_passing_operations_are_published(data_dir):
     version = reg.publish("maintenance", URL, COMMIT, ops, tests)
     assert [op.name for op in version.operations] == ["get_request"]
     assert version.rejected == {
-        "maintenance.list_parts": "contract test failed",
+        "maintenance.list_parts": "contract test failed",  # no detail recorded
         "maintenance.get_status": "tested against a different commit",
         "maintenance.untested": "no contract test",
     }

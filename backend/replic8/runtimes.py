@@ -1,6 +1,6 @@
-"""How replic8 builds and calls code in each supported legacy language.
+"""How REPLIC8 builds and calls code in each supported legacy language.
 
-Everything here is chosen by replic8, never by the model: the image, the build
+Everything here is chosen by REPLIC8, never by the model: the image, the build
 command, and the command that calls one function through the shim.
 """
 

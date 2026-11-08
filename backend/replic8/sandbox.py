@@ -17,12 +17,40 @@ from pathlib import Path
 
 from .config import SandboxLimits
 
-SAFE_PATH = re.compile(r"^[A-Za-z0-9_./-]+$")
+# Linux/macOS paths, or Windows paths like C:\\Users\\aryan\\data. No commas, quotes or
+# spaces, which could break the --mount spec.
+SAFE_PATH = re.compile(r"^(?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\-]+$")
 STDERR_KEEP = 4096
 
 
 class SandboxError(Exception):
-    pass
+    """Base error for running legacy code (PRD section 7). Messages are safe to show:
+    they never include legacy stderr, stack traces, or caller input."""
+
+    status = 502
+
+    def __init__(self, message: str = "legacy system returned an error"):
+        super().__init__(message)
+
+
+class SandboxTimeout(SandboxError):
+    status = 504
+
+
+class SandboxCrash(SandboxError):
+    """The legacy program failed, or returned output that isn't valid JSON."""
+
+
+class OutputSchemaError(SandboxError):
+    """The legacy program answered, but not in the published output schema. Triggers self-heal."""
+
+
+class FunctionMissing(SandboxError):
+    """The legacy program no longer has the called function (e.g. it was renamed). Triggers self-heal."""
+
+
+# Exit codes from runtime/shim.py
+SHIM_FUNCTION_MISSING = 3
 
 
 @dataclass

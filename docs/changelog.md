@@ -7,13 +7,20 @@ Log every meaningful change to the project. Newest entries go at the top.
 - **Who:** tonia (with Claude Code)
 - **What changed:** `.gitignore` now ignores `.env` and `.env.*` everywhere (previously only under `web/`), keeping `.env.example` files tracked, so a `backend/.env` with the Nemotron key can't be committed.
 - **Requirement(s):** NFR Security
-- **Commit:** this commit
+- **Commit:** c201d63
 
 ## 2026-11-08: Agent-friendly propose prompt
 
 - **Who:** tonia (with Claude Code)
 - **What changed:** `prompts.py` rules now explain the call protocol (how input and output keys map to the legacy `KEY=VALUE` lines, `items`, `count`), require field names copied from the legacy keys so systems share names (e.g. `part_id`), and ask for agent-facing descriptions on each operation and property, strict inputs (`maxLength` from field sizes) and lenient outputs. Added `tests/test_prompts.py` (2 tests). Live run on B and C: all 4 operations accepted; known issue: `cost_usd` was typed as a string though the shim returns a number.
 - **Requirement(s):** FR-2, FR-6
+- **Commit:** c201d63
+
+## 2026-11-08: MCP-first backend: contract tests, self-heal, dashboard APIs; Photon dropped; name is REPLIC8
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Finished the backend pipeline. Contract tests record real input/output cases and learn output schemas from real outputs. Onboarding (`POST /v1/admin/systems`) fetches, builds, extracts, proposes, tests and publishes. Self-heal replays recorded cases on new code, repairs only what broke, and saves only identical replays; `trigger_heal`, `validate_call` and the `SandboxError` subclasses from PRD section 7 are built. MCP at `/mcp` is now the main interface (added `backend/scripts/mcp_demo.py` and client setup steps); REST and OpenAPI serve the same tools. Added `/v1/graph`, `/v1/events`, `/v1/systems`, version history and rollback for the dashboard (existing `/health` and `/v1/operations` fields unchanged). Admin actions need a separate admin token. Dropped Photon: removed `notify.py` and its setting, and marked FR-12, PRD F5 and threat T13 as dropped. Added local demo repos, change polling, Windows path support, `python -m replic8`, threats T23 to T29, and 128 tests. Tested live with Nemotron: both systems onboarded in about 6 seconds, and a COBOL rename was repaired and saved as v2 in about 6 seconds with identical answers. Renamed the product to REPLIC8 in docs, backend text and the web pages' visible text (identifiers unchanged).
+- **Requirement(s):** FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-11, FR-12, FR-13
 - **Commit:** this commit
 
 ## 2026-11-08: COBOL and Fortran demo legacy systems
@@ -40,7 +47,7 @@ Log every meaningful change to the project. Newest entries go at the top.
 ## 2026-11-07: Nemotron client, prompts, and self-heal generation
 
 - **Who:** Claude (for Aryan)
-- **What changed:** Added `backend/replic8/nemotron.py` (client), `prompts.py` (secret redaction, injection fencing, source diffs) and `generate.py` (propose operations; repairs that keep each operation's contract). Tested live against `nvidia/nemotron-3.5-super-vl-120b-a12b`: switched to `response_format` with thinking off, and the model no longer supplies commands (replic8 builds them). Recorded decisions: B in COBOL, C in Fortran, the model choice, no model-written code. Added threats T15 to T19 to `docs/security.md` and 22 tests (95 total).
+- **What changed:** Added `backend/replic8/nemotron.py` (client), `prompts.py` (secret redaction, injection fencing, source diffs) and `generate.py` (propose operations; repairs that keep each operation's contract). Tested live against `nvidia/nemotron-3.5-super-vl-120b-a12b`: switched to `response_format` with thinking off, and the model no longer supplies commands (REPLIC8 builds them). Recorded decisions: B in COBOL, C in Fortran, the model choice, no model-written code. Added threats T15 to T19 to `docs/security.md` and 22 tests (95 total).
 - **Requirement(s):** FR-2, FR-7, FR-10, FR-11, FR-13
 - **Commit:** not committed yet
 

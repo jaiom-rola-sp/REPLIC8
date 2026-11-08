@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 MIN_TOKEN_LENGTH = 32
-E164 = re.compile(r"^\+[1-9]\d{6,14}$")
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}\.[a-z][a-z0-9_]{0,63}$")
 
 
@@ -34,6 +33,9 @@ class SandboxLimits:
 class Settings:
     data_dir: Path
     gateway_tokens: frozenset[str] = frozenset()
+    # Admin tokens can onboard repos, trigger repairs and roll back. Keep them
+    # separate from the agent/dashboard tokens above.
+    admin_tokens: frozenset[str] = frozenset()
     # Write operations stay disabled unless named here (FR-13). Empty in v1.
     write_allowlist: frozenset[str] = frozenset()
     # Docker images the sandbox may run. Pin by digest in real deployments.
@@ -43,27 +45,43 @@ class Settings:
     max_repo_files: int = 20_000
     clone_timeout_s: float = 120.0
     rate_limit_per_minute: int = 120
-    notify_numbers: frozenset[str] = frozenset()
+    # Dev/demo only: allow local://<name> repos from this folder. Off when unset.
+    local_repo_root: Path | None = None
+    # Browser origins allowed to call the gateway directly (exact matches). Empty = no CORS.
+    cors_origins: tuple[str, ...] = ()
+    # Seconds between checks for legacy code changes (0 = off).
+    poll_interval_s: float = 0.0
+    # Host headers the MCP endpoint accepts (DNS-rebinding protection), e.g. "replic8.example.com".
+    allowed_hosts: tuple[str, ...] = ("127.0.0.1:*", "localhost:*")
 
     @classmethod
     def from_env(cls) -> "Settings":
         settings = cls(
             data_dir=Path(os.environ.get("REPLIC8_DATA_DIR", "./data")).resolve(),
             gateway_tokens=frozenset(_csv("REPLIC8_GATEWAY_TOKENS")),
+            admin_tokens=frozenset(_csv("REPLIC8_ADMIN_TOKENS")),
             write_allowlist=frozenset(_csv("REPLIC8_WRITE_OPS")),
             sandbox_images=frozenset(_csv("REPLIC8_SANDBOX_IMAGES")),
-            notify_numbers=frozenset(_csv("REPLIC8_NOTIFY_NUMBERS")),
+            local_repo_root=Path(os.environ["REPLIC8_LOCAL_REPO_ROOT"]).resolve()
+            if os.environ.get("REPLIC8_LOCAL_REPO_ROOT") else None,
+            cors_origins=tuple(_csv("REPLIC8_CORS_ORIGINS")),
+            poll_interval_s=float(os.environ.get("REPLIC8_POLL_SECONDS", "0") or 0),
+            allowed_hosts=tuple(_csv("REPLIC8_ALLOWED_HOSTS")) or ("127.0.0.1:*", "localhost:*"),
         )
         settings.validate()
         return settings
 
     def validate(self) -> None:
-        for token in self.gateway_tokens:
+        for token in self.gateway_tokens | self.admin_tokens:
             if len(token) < MIN_TOKEN_LENGTH:
-                raise ConfigError(f"gateway tokens must be at least {MIN_TOKEN_LENGTH} characters")
+                raise ConfigError(f"gateway and admin tokens must be at least {MIN_TOKEN_LENGTH} characters")
+        if self.gateway_tokens & self.admin_tokens:
+            raise ConfigError("admin tokens must differ from gateway tokens")
+        for origin in self.cors_origins:
+            if origin == "*" or not re.fullmatch(r"https?://[A-Za-z0-9.-]+(:\d{1,5})?", origin):
+                raise ConfigError("REPLIC8_CORS_ORIGINS must list exact origins like https://app.example.com")
+        if self.poll_interval_s and self.poll_interval_s < 30:
+            raise ConfigError("REPLIC8_POLL_SECONDS must be 0 (off) or at least 30")
         for tool in self.write_allowlist:
             if not TOOL_NAME.match(tool):
                 raise ConfigError(f"invalid tool name in REPLIC8_WRITE_OPS: {tool!r}")
-        for number in self.notify_numbers:
-            if not E164.match(number):
-                raise ConfigError("REPLIC8_NOTIFY_NUMBERS must be E.164 numbers like +15551234567")

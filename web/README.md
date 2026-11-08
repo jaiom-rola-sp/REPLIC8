@@ -1,4 +1,4 @@
-# Replic8 web review
+# REPLIC8 web review
 
 A silver and black scroll story, followed by a separate app workspace. Built with React, Vite, and React Flow.
 
