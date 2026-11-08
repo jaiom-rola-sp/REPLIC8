@@ -181,3 +181,15 @@ def test_learned_schema_replaces_the_guess():
     op = make_op().model_copy(update={"output_schema": {"type": "object", "required": ["wrong"]}})
     run = run_contract(Exec(), op, "u", COMMIT, [{"id": "1"}], learn_schema=True)
     assert run.result.passed and run.output_schema["required"] == ["id"]
+
+
+def test_operator_examples_loosen_model_value_rules():
+    from replic8.pipeline import fit_input_schema
+    schema = {"type": "object", "additionalProperties": False, "required": ["part_id"],
+              "properties": {"part_id": {"type": "string", "pattern": "^[A-Za-z0-9]+$", "maxLength": 8}}}
+    fitted = fit_input_schema(schema, [{"part_id": "PMP-2210"}])
+    assert fitted["properties"]["part_id"] == {"type": "string", "maxLength": 8}
+    assert schema["properties"]["part_id"]["pattern"]  # original untouched
+    assert fit_input_schema(schema, [{"part_id": 2210}]) is None          # wrong type
+    assert fit_input_schema(schema, [{"partId": "PMP-2210"}]) is None     # wrong field name
+    assert fit_input_schema(schema, []) == schema

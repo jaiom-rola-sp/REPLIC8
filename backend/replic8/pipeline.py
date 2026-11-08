@@ -11,6 +11,7 @@ section 7). Progress is reported through the event log, which the dashboard read
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -153,8 +154,16 @@ class Pipeline:
             if op.access is Access.write and op.tool not in self.settings.write_allowlist:
                 rejected[op.tool] = "write operation: not tested or published in v1 (FR-13)"
                 continue
-            inputs = _valid_inputs(op, examples.get(op.name, []) + examples.get(op.tool, [])) \
-                + gen.examples.get(op.tool, [])
+            given = [e for e in examples.get(op.name, []) + examples.get(op.tool, []) if isinstance(e, dict)]
+            fitted = fit_input_schema(op.input_schema, given)
+            if fitted is None:
+                rejected[op.tool] = "input schema does not fit the supplied example inputs (type or fields differ)"
+                continue
+            if fitted != op.input_schema:
+                op = op.model_copy(update={"input_schema": fitted})
+                self.events.add("schema_adjusted", system=system, tool=op.tool,
+                                detail="model input rules rejected real examples; loosened to fit them")
+            inputs = given + _valid_inputs(op, gen.examples.get(op.tool, []))
             run = run_contract(self.executor, op, checkout.url, checkout.commit, inputs, learn_schema=True)
             tests[op.tool], cases[op.tool] = run.result, run.cases
             if run.output_schema is not None:
@@ -304,6 +313,35 @@ class Pipeline:
                     self.check_for_changes(system)
                 except Exception:  # noqa: BLE001
                     log.exception("change check failed for %s", system)
+
+
+LOOSENABLE = ("pattern", "maxLength", "minLength", "enum", "format", "const")
+
+
+def fit_input_schema(schema: dict[str, Any], examples: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Make the model's input schema accept the operator's real example inputs.
+
+    Operator examples are real values (e.g. part ID "PMP-2210"), so they win over
+    the model's guessed constraints. Only per-field value rules are loosened;
+    a wrong type, a missing required field or an unknown field means the schema
+    doesn't describe this function, and None is returned.
+    """
+    fitted = json.loads(json.dumps(schema))
+    for _ in range(20):
+        errors = [e for ex in examples for e in Draft202012Validator(fitted).iter_errors(ex)]
+        if not errors:
+            return fitted
+        changed = False
+        for err in errors:
+            if err.validator not in LOOSENABLE or len(err.absolute_path) != 1:
+                return None
+            prop = fitted.get("properties", {}).get(err.absolute_path[0])
+            if isinstance(prop, dict) and err.validator in prop:
+                del prop[err.validator]
+                changed = True
+        if not changed:
+            return None
+    return None
 
 
 def _valid_inputs(op: Operation, inputs: list[Any]) -> list[dict[str, Any]]:

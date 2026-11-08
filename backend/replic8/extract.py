@@ -1,7 +1,8 @@
 """Extract real function names and lines with tree-sitter (FR-1, FR-11 `parsed` tier).
 
 The model may only choose from these symbols, so it can't invent functions.
-COBOL: paragraphs (excluding the entry paragraph). Fortran: subroutines and functions.
+COBOL: paragraphs (excluding the entry paragraph). Java: methods (excluding main).
+Fortran: subroutines and functions.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from .ingest import SKIP_DIRS
 
 SUFFIXES = {
     ".cbl": "cobol", ".cob": "cobol",
+    ".java": "java",
     ".f90": "fortran", ".f": "fortran", ".for": "fortran",
 }
 # Entry points that run the program rather than one operation.
@@ -49,6 +51,19 @@ def _fortran(tree) -> list[tuple[str, int]]:
     return found
 
 
+def _java(tree) -> list[tuple[str, int]]:
+    found = []
+    for node in _walk(tree.root_node):
+        if node.type == "method_declaration":
+            name = node.child_by_field_name("name")
+            if name is not None and name.text != b"main":
+                found.append((name.text.decode("ascii", "replace"), name.start_point[0] + 1))
+    return found
+
+
+EXTRACTORS = {"cobol": _cobol, "fortran": _fortran, "java": _java}
+
+
 def language_of(path: Path) -> str | None:
     return SUFFIXES.get(path.suffix.lower())
 
@@ -60,6 +75,8 @@ def _confirmed(lines: list[str], name: str, line: int, lang: str) -> bool:
     text = lines[line - 1]
     if lang == "cobol":
         return text.strip().upper().rstrip(".").strip() == name.upper()
+    if lang == "java":
+        return f"{name}(" in text.replace(" (", "(")
     return name.lower() in text.lower() and ("subroutine" in text.lower() or "function" in text.lower())
 
 
@@ -85,7 +102,7 @@ def extract_symbols(repo_root: Path) -> tuple[list[Symbol], list[str]]:
         if tree.root_node.has_error:
             errors.append(rel.as_posix())
         lines = source.decode("utf-8", "replace").splitlines()
-        pairs = _cobol(tree) if lang == "cobol" else _fortran(tree)
+        pairs = EXTRACTORS[lang](tree)
         symbols.extend(Symbol(name, rel.as_posix(), line) for name, line in pairs
                        if _confirmed(lines, name, line, lang))
     return symbols, errors

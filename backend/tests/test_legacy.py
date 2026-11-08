@@ -21,7 +21,7 @@ from conftest import TOKEN
 
 ROOT = Path(__file__).resolve().parents[2]
 B = ROOT / "legacy" / "b-maintenance-cobol"
-C = ROOT / "legacy" / "c-inventory-fortran"
+C = ROOT / "legacy" / "c-inventory-java"
 COMMIT_B = "b" * 40
 COMMIT_C = "c" * 40
 
@@ -45,13 +45,20 @@ def test_extracts_cobol_paragraphs_without_entry_point():
     assert (B / file).read_text().splitlines()[line - 1].strip() == "GET-REQUEST."
 
 
-def test_extracts_fortran_subroutines_and_functions():
+def test_extracts_java_methods_without_main():
     symbols, errors = extract_symbols(C)
     assert errors == []
     names = {s.name: (s.file, s.line) for s in symbols}
-    assert {"check_stock", "get_shipping_options", "find_part"} <= set(names)
-    file, line = names["check_stock"]
-    assert "subroutine check_stock" in (C / file).read_text().splitlines()[line - 1]
+    assert {"checkStock", "getShippingOptions", "findPart"} <= set(names) and "main" not in names
+    file, line = names["checkStock"]
+    assert file == "src/com/subc/pil/Inventory.java"
+    assert "void checkStock(" in (C / file).read_text().splitlines()[line - 1]
+
+
+def test_extracts_fortran_subroutines(tmp_path):
+    (tmp_path / "inv.f90").write_text("program p\ncontains\n  subroutine check_stock(x)\n    integer :: x\n  end subroutine check_stock\nend program p\n")
+    symbols, errors = extract_symbols(tmp_path)
+    assert errors == [] and [(s.name, s.line) for s in symbols] == [("check_stock", 3)]
 
 
 def test_unparseable_file_is_reported_not_guessed(tmp_path):
@@ -62,22 +69,25 @@ def test_unparseable_file_is_reported_not_guessed(tmp_path):
 
 def test_symbol_must_be_on_its_reported_line():
     from replic8.extract import _confirmed
-    lines = ["       GET-REQUEST.", "  subroutine check_stock(part_id)"]
+    lines = ["       GET-REQUEST.", "  subroutine check_stock(part_id)", "    static void checkStock(String id) {"]
     assert _confirmed(lines, "GET-REQUEST", 1, "cobol")
     assert not _confirmed(lines, "DELETE-ALL", 1, "cobol")
     assert _confirmed(lines, "check_stock", 2, "fortran")
     assert not _confirmed(lines, "check_stock", 9, "fortran")
+    assert _confirmed(lines, "checkStock", 3, "java")
+    assert not _confirmed(lines, "deleteAll", 3, "java")
 
 
 # ---------- runtime table ----------
 
 def test_only_dispatchable_symbols_are_offered():
     assert sorted(s.name for s in callable_symbols(B, extract_symbols(B)[0])) == ["GET-REQUEST", "LIST-OPEN-REQUESTS"]
-    assert sorted(s.name for s in callable_symbols(C, extract_symbols(C)[0])) == ["check_stock", "get_shipping_options"]
+    assert sorted(s.name for s in callable_symbols(C, extract_symbols(C)[0])) == ["checkStock", "getShippingOptions"]
 
 
 def test_argv_is_built_by_replic8():
     assert argv_for("GET-REQUEST", "src/MAINT.cbl") == ["python3", "/replic8/shim.py", "/build/maint", "GET-REQUEST"]
+    assert argv_for("checkStock", "src/com/subc/pil/Inventory.java")[-2:] == ["/build/app.jar", "checkStock"]
     assert argv_for("check_stock", "src/inventory.f90")[-2:] == ["/build/inventory", "check_stock"]
     assert argv_for("x; rm -rf /", "src/MAINT.cbl") == []
     assert argv_for("main", "src/app.py") == []
@@ -112,7 +122,7 @@ def _image_ready() -> bool:
 
 
 @pytest.mark.skipif(not _image_ready(), reason=f"needs Docker with {LEGACY_IMAGE} built")
-def test_end_to_end_cobol_and_fortran(tmp_path):
+def test_end_to_end_cobol_and_java(tmp_path):
     data = tmp_path / "data"
     repos, builds = data / "repos", data / "builds"
     checkouts = {
@@ -138,7 +148,7 @@ def test_end_to_end_cobol_and_fortran(tmp_path):
     reg = Registry(data)
     get_req = op("maintenance", "get_request", "GET-REQUEST", "src/MAINT.cbl", sym_b["GET-REQUEST"].line,
                  {"request_id": {"type": "string", "pattern": "^R-[0-9]{4}$"}}, ["request_id"])
-    stock = op("inventory", "check_stock", "check_stock", "src/inventory.f90", sym_c["check_stock"].line,
+    stock = op("inventory", "check_stock", "checkStock", "src/com/subc/pil/Inventory.java", sym_c["checkStock"].line,
                {"part_id": {"type": "string", "pattern": "^[A-Z]{3}-[0-9]{4}$"}}, ["part_id"])
     reg.publish("maintenance", "https://github.com/acme/b-maint.git", COMMIT_B, [get_req],
                 {get_req.tool: ContractTestResult(passed=True, cases=1, source_commit=COMMIT_B)})

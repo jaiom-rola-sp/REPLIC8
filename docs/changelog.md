@@ -2,6 +2,13 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-08: Company C is legacy Java; changelog merges without conflicts
+
+- **Who:** Claude (for Aryan)
+- **What changed:** Replaced the Fortran demo system with `legacy/c-inventory-java` (J2SE 1.4 style Java: `checkStock`, `getShippingOptions`; same data and shared keys). Added Java to the runtime image (OpenJDK 17), a sandboxed jar build, a small-JVM call path in the shim, and tree-sitter Java method extraction. Example inputs given at onboarding now override the model's input rules when those reject real values (`schema_adjusted` event). Added `docs/changelog.md merge=union` to `.gitattributes` so simultaneous changelog entries no longer conflict. Tested live with Nemotron: COBOL and Java onboarded, the MCP demo chain answered, and the COBOL rename self-healed to v2. 130 tests.
+- **Requirement(s):** FR-1, FR-10, FR-11
+- **Commit:** this commit
+
 ## 2026-11-08: MCP-first backend: contract tests, self-heal, dashboard APIs; Photon dropped; name is REPLIC8
 
 - **Who:** Claude (for Aryan)

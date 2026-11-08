@@ -19,7 +19,7 @@ SAFE_TEXT = re.compile(r"[^A-Za-z0-9 ._:/()+,=-]")
 KINDS = {
     "onboard_started", "onboarded", "onboard_failed", "published", "contract_failed",
     "call_failed", "heal_started", "heal_saved", "heal_failed", "heal_skipped", "rolled_back",
-    "change_detected",
+    "change_detected", "schema_adjusted",
 }
 
 
