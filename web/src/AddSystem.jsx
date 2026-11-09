@@ -33,7 +33,7 @@ function explain(status) {
 
 // Import a system from GitHub through the gateway's admin API and follow its progress.
 // The admin token is held in memory only (never in browser storage).
-export default function AddSystem({ base, token, adminToken, setAdminToken, live, onOpenSettings, onPublished, onClose }) {
+export default function AddSystem({ base, token, adminToken, setAdminToken, inWorkspace = false, live, onOpenSettings, onPublished, onClose }) {
   const [tab, setTab] = useState('legacy');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -157,9 +157,9 @@ export default function AddSystem({ base, token, adminToken, setAdminToken, live
         <p className="dash-field-hint">Leave empty to look for <code>openapi.yaml</code>, <code>openapi.json</code>, <code>swagger.yaml</code> or <code>swagger.json</code> in the top three folders.</p>
         <label className="dash-check"><input type="checkbox" checked={parent} onChange={(e) => setParent(e.target.checked)} /><span>This is the parent company<small>Its agents use REPLIC8 to reach the legacy systems, so the graph draws a line from it into REPLIC8.</small></span></label>
       </>}
-      <label>Admin token<input type="password" value={admin} onChange={(e) => { setAdmin(e.target.value); setError(''); }} placeholder="Needed to import" autoComplete="off" required /></label>
+      {!inWorkspace && <label>Admin token<input type="password" value={admin} onChange={(e) => { setAdmin(e.target.value); setError(''); }} placeholder="Needed to import" autoComplete="off" required /></label>}
       {error && <p className="dash-form-error" role="alert">{error}</p>}
-      <div className="dash-form-note"><LockKeyhole size={14} /><span>Public repositories only. The admin token stays in this tab's memory and is never saved.</span></div>
+      <div className="dash-form-note"><LockKeyhole size={14} /><span>{inWorkspace ? 'Public repositories only. Imports go into this workspace; no admin token is needed.' : "Public repositories only. The admin token stays in this tab's memory and is never saved."}</span></div>
       <button className="dash-primary-button" type="submit" disabled={busy}>{busy ? 'Starting…' : 'Import from GitHub'}<ArrowRight size={15} /></button>
     </form>
   </>);
