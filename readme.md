@@ -4,6 +4,18 @@ Turn old code on GitHub into tools that AI agents can use.
 
 Live site: https://www.replic8.work
 
+## Try it
+
+Go to **https://www.replic8.work**, open the dashboard, and choose **Open a workspace**. Pick a demo from the **Try a demo workspace** dropdown, or paste one of these public demo tokens:
+
+| Workspace | Token |
+|-----------|-------|
+| Demo workspace 1 | `r8w_7At38k5fV5r7xqVtDIoc0wu0PeZ-_AeHih-vzRNFe_Y` |
+| Demo workspace 2 | `r8w_GBz1wQu8qdoqNf_2OYeDosDQF4ePwB_ciP49IjrZgbk` |
+| Demo workspace 3 | `r8w_acVHbda4G99kovkavp_6rVXmk6vVFAvjZs1ziXCoFRA` |
+
+These tokens are public on purpose. They open shared demo workspaces only (not the gateway), and anyone can see and change what is in them. Please don't import private code. They will be rotated after the demo period.
+
 ## What it does
 
 - Paste a GitHub repo of legacy code.

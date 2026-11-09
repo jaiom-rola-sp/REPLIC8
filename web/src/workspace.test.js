@@ -52,3 +52,10 @@ test('the gateway address can be set when the site is built', () => {
   assert.equal(defaultGateway({ VITE_REPLIC8_GATEWAY: ' https://replic8.tail1.ts.net/ ' }), 'https://replic8.tail1.ts.net');
   assert.equal(defaultGateway({ VITE_REPLIC8_GATEWAY: 'not a url' }), '/gateway');
 });
+
+test('every demo workspace token is well formed and unique', async () => {
+  const { DEMO_WORKSPACES } = await import('./demoWorkspaces.js');
+  assert.ok(DEMO_WORKSPACES.length > 0);
+  for (const d of DEMO_WORKSPACES) assert.equal(checkWorkspaceToken(d.token), '');
+  assert.equal(new Set(DEMO_WORKSPACES.map(d => d.token)).size, DEMO_WORKSPACES.length);
+});

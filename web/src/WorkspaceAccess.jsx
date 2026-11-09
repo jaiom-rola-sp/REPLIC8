@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Check, Copy, Eye, EyeOff, KeyRound, LockKeyhole, LogOut, Plus, Workflow } from 'lucide-react';
 import { checkWorkspaceToken, createWorkspace, normalizeGateway } from './workspace.js';
+import { DEMO_WORKSPACES } from './demoWorkspaces.js';
 import './workspace.css';
 
 // Start a new workspace, open a saved one with its token, or leave the current one.
@@ -85,6 +86,12 @@ export default function WorkspaceAccess({ gateway, setGateway, isLive, info, tok
     <label>Gateway address<input required value={gateway} onChange={e => setGateway(e.target.value)} placeholder="https://replic8.example.ts.net" spellCheck={false} /></label>
     {tab === 'open'
       ? <form onSubmit={open}>
+          <label>Try a demo workspace
+            <select value={DEMO_WORKSPACES.find(d => d.token === token)?.token || ''} onChange={e => { setToken(e.target.value); setProblem(''); }}>
+              <option value="">Choose a demo…</option>
+              {DEMO_WORKSPACES.map(d => <option key={d.token} value={d.token}>{d.name}</option>)}
+            </select>
+          </label>
           <label>Workspace token<input type="password" required value={token} onChange={e => { setToken(e.target.value); setProblem(''); }} placeholder="r8w_…" autoComplete="off" /></label>
           {(problem || error) && <p className="dash-form-error" role="alert">{problem || error}</p>}
           <button type="submit" className="dash-primary-button" disabled={connecting}>{connecting ? 'Opening…' : 'Open workspace'}<ArrowRight size={15} /></button>
