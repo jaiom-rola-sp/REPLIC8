@@ -2,6 +2,17 @@
 
 Log every meaningful change to the project. Newest entries go at the top.
 
+## 2026-11-09: New Azure VM, public demo workspaces, demo dropdown
+
+- **Who:** Claude (for Jaiom)
+- **What changed:**
+  - **New backend host:** a new Azure for Students VM (Belgium Central, Standard B2als v2, Ubuntu 24.04) at `https://replic8-demo.belgiumcentral.cloudapp.azure.com`, set up with `deploy/vm/setup.sh`. East US was refused by the student region policy. Vercel's `VITE_REPLIC8_GATEWAY` points to it (a Config variable; the address is public).
+  - **Public demo workspaces:** three workspaces (`demo-1` to `demo-3`), each with the maintenance (COBOL) and inventory (Java) demo systems published. Their tokens are published on purpose in `readme.md` (new "Try it" section) and `web/src/demoWorkspaces.js`, and offered in a **Try a demo workspace** dropdown on the Open a workspace tab.
+  - **Exception to "no secrets in the repo":** Jaiom decided these demo tokens are public. They open only those workspaces, not the gateway. Rotate or delete the workspaces after the demo period (`DELETE /v1/workspaces/{id}` with the admin token).
+- **Requirement(s):** FR-16, WEB-14
+- **Validation:** 43 web tests pass (1 new: demo tokens well formed and unique); production build passes. On the VM: `/health` ok over HTTPS, CORS allows only `https://www.replic8.work`, both systems published in each demo workspace. Not tested in a browser.
+- **Commit:** not committed yet (awaiting approval)
+
 ## 2026-11-08: Import fixes found with two new demo repos (COBOL inventory, old-Java crew roster)
 
 - **Who:** Claude (for Aryan)
