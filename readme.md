@@ -3,7 +3,7 @@
 Turn old code on GitHub into tools that AI agents can use.
 
 Live site: https://www.replic8.work
-
+Dev Post: https://devpost.com/software/replic8
 ## Try it
 
 Go to **https://www.replic8.work**, open the dashboard, and choose **Open a workspace**. Pick a demo from the **Try a demo workspace** dropdown, or paste one of these public demo tokens:
